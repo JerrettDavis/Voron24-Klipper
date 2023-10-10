@@ -1,3 +1,11 @@
+
+# Ignore backup files
 printer-*_*.cfg
 .moonraker.conf.bkp
+
+# Ignore Klippain Symlinks
+config/
+macros/
+moonraker/
+scripts/
 
