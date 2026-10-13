@@ -1,0 +1,316 @@
+# voron24 — Klipper config for a Voron 2.4 (350) with ERCF v2 MMU
+
+Klipper configuration, restore tooling and the full bring-up/calibration checklist for **voron24**
+(`ssh jd@voron24.jerrettdavis.com`, Mainsail on port 80).
+
+| | |
+|---|---|
+| Printer | LDO Voron 2.4 350 mm kit, CoreXY, 4× Z + QGL, Stealthburner + Clockwork 2, Voron TAP |
+| Boards | BTT Octopus (main, USB) · Mellow SB2040 v1 (toolhead, CAN) · BTT MMB CAN v1.0 (MMU, CAN) |
+| MMU | ERCF **v2.0**, 12 gates ("carrot" blocks), LinearServoSelector, encoder, bypass, **no** toolhead/pre-gate sensors |
+| Host | Raspberry Pi (`voron24`), Raspberry Pi OS Bookworm, CAN via USB-CAN adapter (`can0`, 1 Mbit) |
+| Config framework | [Klippain](https://github.com/Frix-x/klippain) (pinned in `.VERSION`) + [Happy Hare](https://github.com/moggieuk/Happy-Hare) v4 |
+| Camera | Logitech Brio 100 (USB) → Crowsnest/ustreamer → Mainsail |
+
+> **State as of 2026-10-12:** software stack up and `Printer is ready`; **nothing is calibrated yet**.
+> Work through [Setup & calibration](#setup--calibration-in-order) top to bottom. Items in
+> [Open items](#open-items--verify-before-trusting-the-config) are config values that were reviewed
+> but need a physical check.
+
+---
+
+## Contents
+
+1. [Repo layout & how the config fits together](#repo-layout--how-the-config-fits-together)
+2. [Wiring / MCU map](#wiring--mcu-map)
+3. [Open items — verify before trusting the config](#open-items--verify-before-trusting-the-config)
+4. [Setup & calibration, in order](#setup--calibration-in-order)
+5. [Camera](#camera)
+6. [Slicer setup](#slicer-setup)
+7. [Maintenance: updates, backups, restore, validation](#maintenance-updates-backups-restore-validation)
+8. [Troubleshooting](#troubleshooting)
+
+---
+
+## Repo layout & how the config fits together
+
+This repo **is** `~/printer_data/config` on the Pi (`origin` = `JerrettDavis/voron24-klipper`).
+
+| Path | What it is | Edit? |
+|---|---|---|
+| `printer.cfg` | Entry point: Klippain feature includes (kinematics, TAP, fans, MMU …) | yes |
+| `mcu.cfg` | **All wiring**: MCU serial/CAN IDs, TMC driver includes, `[board_pins]` aliases, toolhead pin remaps | yes |
+| `overrides.cfg` | Per-machine tuning: PIDs, SGTHRS, probe z_offset, input shaper, extruder rotation_distance, fans | yes |
+| `variables.cfg` | Klippain macro variables (park positions, soak, MMU start/end behaviour). Currently stock template | yes |
+| `moonraker.conf` | Moonraker incl. update manager, `[mmu_server]`, `[webcam printer]` | yes |
+| `crowsnest.conf` | Camera stream (device by stable `/dev/v4l/by-id/…` path) | yes |
+| `mmu/base/mmu_hardware_unit0.cfg` | Happy Hare hardware: MCU `unit0`, steppers, TMC, servo, encoder | yes (see warning) |
+| `mmu/base/mmu_parameters_unit0.cfg`, `mmu_macro_vars.cfg`, `mmu.cfg` | Happy Hare behaviour (speeds, homing, sync, toolhead dims, macros) | yes |
+| `mmu/.mmu_config` | Happy Hare installer's saved answers (Kconfig). Hand-synced with the files above | careful |
+| `save_variables.cfg` | **Live** Happy Hare store: calibration results (selector offsets, servo angles, gear rotation distances, bowden length, encoder resolution) | written by Klipper |
+| `mmu/mmu_vars.cfg` | Happy Hare's template store — **unused** here (Klippain's `[save_variables]` in `variables.cfg` points at `save_variables.cfg` and wins) | no |
+| `firmware/` | Klipper `make menuconfig` configs for the MMB and SB2040 (see [Firmware](#phase-1--firmware)) | reference |
+| `tools/` | `validate.sh`, `restore.sh`, `backup-calibration.sh`, `system/can0` | yes |
+| `config/ macros/ moonraker/ scripts/` | **Symlinks** into `~/klippain_config` (Klippain itself). Git-ignored. Don't edit through them | **never** |
+
+**Rules that keep upgrades safe**
+
+* Klippain upstream (`~/klippain_config`) must stay **unmodified**. Everything custom lives in the files
+  above. `tools/validate.sh` fails if the checkout is dirty. (Previously the MMB pin map was hand-edited
+  inside it; it is now inlined in `mcu.cfg`.)
+* `mmu/base/*.cfg` are *generated* by Happy Hare's `install.sh` from `mmu/.mmu_config`, then hand-edited here.
+  **Do not run `./install.sh` or `./install.sh -i`** to “fix” things — it re-renders them from `.mmu_config`
+  and can silently revert reviewed values (gear ratio, currents, sensors). If you must upgrade Happy Hare
+  with the installer, run it, then `git diff` and restore anything it changed. `tools/restore.sh` only uses
+  `install.sh -f` (re-link only).
+* Commit calibration results: `tools/backup-calibration.sh [--push]` (see [Backups](#backups--calibration-snapshots)).
+
+---
+
+## Wiring / MCU map
+
+**MCUs** (`mcu.cfg`)
+
+| Name in Klipper | Board | Link | ID |
+|---|---|---|---|
+| `mcu` | BTT Octopus (STM32F446) | USB | `/dev/serial/by-id/usb-Klipper_stm32f446xx_44005F001251303431333234-if00` |
+| `toolhead` | Mellow SB2040 v1 (RP2040) | CAN | `canbus_uuid: 41b162ca2046` |
+| `unit0` | BTT MMB CAN v1.0 (STM32G0B1) | CAN | `canbus_uuid: 691d61df91e5` (declared in `mmu/base/mmu_hardware_unit0.cfg`) |
+
+**Toolhead (SB2040) pin remaps** (`mcu.cfg`): extruder step/dir/en/heater/thermistor, TAP (`probe`, `^toolhead:PROBE_INPUT`),
+part fan (`FAN0`), hotend fan (`FAN1`), toolhead cooling fan (`FAN2`, in `overrides.cfg`), status LEDs (`RGB`),
+ADXL345 on the board, extruder TMC2209 UART (`toolhead:E_TMCUART`).
+
+**MMB CAN v1.0 pin map** (raw pins in `mmu/base/mmu_hardware_unit0.cfg`; aliases in `mcu.cfg`):
+
+| Function | Pin | Note |
+|---|---|---|
+| Gear: step/dir/en/UART/DIAG | PB15 / PB14 / !PA8 / PA10 / PA3 | M1 (DIAG = STP1) |
+| Selector: step/dir/en/UART/DIAG | PD2 / PB13 / !PD1 / PC7 / PA4 | M2 (DIAG = STP2) |
+| Selector endstop | `^PB2` | STP11 |
+| Servo | PA0 | `MOT` |
+| Encoder | `^PA1` | `SENSOR` |
+| Pre-gate sensors | PB9 PB8 PC15 PC13 PC14 PB12 PB11 PB10 | STP3–STP10 — **not fitted**, left empty in config |
+
+The MMB has only 11 STP inputs and 3 are taken (2 DIAG + selector endstop), so at most 8 of the 12 gates
+could ever have a pre-gate sensor.
+
+**Known pin-alias quirks** (harmless today, remember them before using the aliases):
+* `mcu.cfg` maps `TOOLHEAD_SENSOR` **and** `PROBE_INPUT` to `MCU_5V_ENDSTOP`, and `EXTRUDER_SENSOR` to `MCU_FAN2`
+  (already used by `toolhead_fan`). Don't enable a Happy Hare toolhead/extruder sensor without re-pinning.
+* Sensorless X/Y homing (`SGTHRS 145`) uses the Octopus DIAG pins; the toolhead X endstop line is commented out.
+
+---
+
+## Open items — verify before trusting the config
+
+These came out of a review of the freshly-installed config against Happy Hare v4 and the physical hardware.
+Tick them off as you go; the calibration sections reference them.
+
+- [x] **Klippain checkout was modified** (`BTT_MMB_CAN_v1.0.cfg`: `mcu: mmu → unit0`). Fixed: block inlined in `mcu.cfg`, checkout reverted.
+- [x] **Extruder TMC2209 wasn't configured** (no `[tmc2209 extruder]`; driver ran on power-on defaults). Fixed: enabled via Klippain `TMC2209.cfg` + `uart_pin: toolhead:E_TMCUART`; verified with `DUMP_TMC STEPPER=extruder REGISTER=IOIN` (TMC2209, `version=0x21`). Klippain default is `run_current: 0.45` — confirm against your motor.
+- [x] **MMU stepper settings were ERCF v3.0 defaults on a v2.0 unit** (gear 1:1 / 0.8 A, selector 0.7 A; `.mmu_config` also said 3.0 / 8 gates). Set to HH's ERCF v2.0 defaults: gear ratio **80:20**, gear **0.5 A** (hold 0.1), selector **0.4 A**; `.mmu_config` synced (v2.0, 12 gates).
+  *If the gear behaves weakly/loudly, the 80:20 ratio is the first thing to check against your actual gear set.*
+- [x] **Pre-gate sensors** configured on pins where nothing is wired → removed (empty pins). Re-enable only if you add sensors (gates 0–7 max).
+- [x] **Camera**: now by stable by-id path, 1280×720 MJPG @ 15 fps, registered in Moonraker (`[webcam printer]`).
+- [ ] **Octopus firmware is older (`v0.12.0-93`) than the host and the other MCUs (`v0.13.0-697`).** Reflash it ([Firmware](#phase-1--firmware)) before first print.
+- [ ] **Servo angles** (`mmu_parameters_unit0.cfg`: up 160 / down 30 / move 130) are *not* HH's ERCF defaults (30 / 100 / 50 in `.mmu_config`). They only apply until you calibrate with `MMU_SERVO`; verify direction/travel **with no filament and the selector clear** before anything else.
+- [ ] **Stale MMU state in `save_variables.cfg`** from earlier experiments (selector offsets, bypass offset 273.7, statistics). Treat as uncalibrated: step 4.2 resets and redoes the selector.
+- [ ] **Toolhead dimensions** (`mmu.cfg [mmu_toolhead default]`: extruder→nozzle 72, entry→extruder 8, residual 2) are generic, and `.mmu_config` says toolhead *Other/Unknown*. Confirm your hotend; HH has presets under `~/Happy-Hare/installer/toolheads/Kconfig.stealthburner_clockwork2_*` (Revo 72/13/2, Dragon HF 70.3/12.4/30.6, Rapido HF 84.8/13/5 …) — or measure (step 4.7).
+- [ ] **No toolhead/extruder sensor.** `MMU_CALIBRATE_TOOLHEAD` homes to the toolhead sensor, so it can't run; set dimensions manually. Extruder homing uses the encoder (collision) — expected for ERCF without a sensor.
+- [ ] **Extruder `rotation_distance: 44.1737` in `overrides.cfg`** is carried over from the old setup, while Klippain's CW2 template uses `22.6789511` with `gear_ratio 50:10` and `microsteps: 32` (override sets 16). Recalibrate (step 3.8) rather than trust it.
+- [ ] **Carried-over tuning** (PID, input shaper `87.8/2hump_ei` & `36.6/mzv`, TAP `z_offset −0.375`, `SGTHRS 145`) came from the previous install — re-measure, don't assume.
+- [ ] `variables.cfg` is the unmodified Klippain template (park positions, soak times, `mmu_*` flags, purge). Review once.
+- [ ] A stray clone `~/voron24-klipper` exists on the Pi with broken `/home/pi/...` symlinks. It is unused; delete it when convenient (`rm -rf ~/voron24-klipper`). Old `*.old-*`, `mmu.old-*` and `~/printer_config_backup_*` copies are safe to remove once you're happy.
+
+---
+
+## Setup & calibration, in order
+
+General rules: **hands near the power switch**, bed clear, first moves slow. Add `HELP=1` to any Happy Hare
+command (e.g. `MMU_CALIBRATE_GEAR HELP=1`) to see its parameters and examples. Run
+`tools/validate.sh` on the Pi at the start of every phase; it is read-only.
+
+### Phase 0 — Pre-flight (no motion)
+
+1. `ssh jd@voron24.jerrettdavis.com` → `~/printer_data/config/tools/validate.sh`. Expected: no `FAIL`. Known `WARN`: Octopus firmware version until step 1.
+2. In Mainsail confirm: Klipper `ready`, three MCUs (`mcu`, `toolhead`, `unit0`) with no errors, temperatures sane (bed, hotend, chamber, MCUs).
+3. Heaters: set hotend to 50 °C, bed to 40 °C briefly; verify temperatures **rise** and are attributed to the right heater; cool down. (Do before any long heating.)
+4. Fans: `SET_FAN_SPEED FAN=…` / Mainsail fan sliders — part fan, hotend fan (`heater_fan` should spin when hot), toolhead cooling fan, controller fan, Nevermore filter.
+5. LEDs/neopixels: status LEDs on the toolhead and MMB RGB light.
+6. Camera: Mainsail dashboard should show the stream ([Camera](#camera)).
+7. Extruder driver: `DUMP_TMC STEPPER=extruder REGISTER=IOIN` returns a reply (`version=0x21`).
+
+### Phase 1 — Firmware
+
+Do this **now**, before motion tests, so every MCU runs the same Klipper as the host.
+
+`tools/validate.sh` compares each MCU's `mcu_version` with the host. Current: Octopus `v0.12.0-93-g43a9685c`;
+SB2040 & MMB `v0.13.0-697-g430a2a8a0` = host.
+
+* **Octopus (USB, STM32F446)** — `~/klipper$ make menuconfig` with: *STM32F446*, bootloader offset **32 KiB**, clock **12 MHz crystal**, communication **USB (on PA11/PA12)**. Then `make -j4`, stop Klipper, flash via your bootloader method (Katapult over USB or DFU), start Klipper. The exact Octopus `.config` wasn't saved previously; after flashing, save it as `firmware/octopus-f446.config`.
+* **SB2040 (CAN)** — config saved in `firmware/sb2040-toolhead.config` (RP2040, CAN, 1 Mbit).
+* **MMB CAN v1.0 (CAN)** — config saved in `firmware/mmb-can-v1.0.config` (STM32G0B1, 8 MHz crystal, 8 KiB bootloader offset, CAN on PB0/PB1, 1 Mbit).
+
+Flash a CAN node (as done for the MMB):
+
+```bash
+cd ~/klipper
+make KCONFIG_CONFIG=/home/jd/printer_data/config/firmware/mmb-can-v1.0.config -j4   # build with the saved config
+sudo systemctl stop klipper
+python3 ~/katapult/scripts/flash_can.py -i can0 -q                                   # list nodes (bootloader UUIDs)
+python3 ~/katapult/scripts/flash_can.py -i can0 -f ~/klipper/out/klipper.bin -u 691d61df91e5
+sudo systemctl start klipper
+```
+
+*Query CAN UUIDs (Klipper stopped):* `python3 ~/klipper/scripts/canbus_query.py can0`. Expected: `41b162ca2046` (toolhead) and `691d61df91e5` (MMB).
+
+`can0` is brought up by `/etc/network/interfaces.d/can0` (copy in `tools/system/can0`: 1 Mbit, `txqueuelen 1024`). A mismatched bitrate on any node = `Timeout on connect`.
+
+### Phase 2 — Printer mechanical & electrical (first motion, slow)
+
+1. **Endstops/QUERY**: `QUERY_ENDSTOPS` (open/triggered), press TAP's nozzle (`QUERY_PROBE`): flips when triggered. Check **before** homing.
+2. **Motor directions & buzz**: `STEPPER_BUZZ STEPPER=stepper_x` (also `stepper_y`, `stepper_z`, `z1`, `z2`, `z3`). All Z buzzes should move the same direction visually; `stepper_z1`/`z3` directions are inverted in `overrides.cfg` (`!Z1_DIR`, `!Z3_DIR`) — confirm that matches how your Z motors are mounted.
+3. **Home**: `G28 X`, then `G28 Y` (sensorless, `SGTHRS 145`; tune per Klipper's TMC docs if it stalls early/late or crashes), then `G28 Z` (TAP). Keep a hand on the switch.
+4. **TAP**: `PROBE_ACCURACY` (std dev ≲ 0.005 mm), then `PROBE_CALIBRATE`/`Z_OFFSET_APPLY_PROBE` → sets `[probe] z_offset` (currently `−0.375`; save into `overrides.cfg`). Heat nozzle to print temp for the final offset (TAP is nozzle-contact).
+5. **Gantry level**: `QUAD_GANTRY_LEVEL` (350 mm config). Repeat until the final retry is ≲ 0.005 mm.
+
+### Phase 3 — Printer calibration
+
+Order matters — each step depends on the previous.
+
+1. **Bed PID**: `PID_CALIBRATE HEATER=heater_bed TARGET=100` → `SAVE_CONFIG` or copy into `overrides.cfg` (`pid_kp/ki/kd`). `max_power: 0.75` is set for the bed.
+2. **Hotend PID**: `PID_CALIBRATE HEATER=extruder TARGET=250` (part fan on, as in printing) → copy into `overrides.cfg`.
+3. **Chamber soak sanity**: confirm `Chamber` temperature sensor reading plausible values.
+4. **Extruder rotation_distance** *(unrelated to the MMU gear)*: with filament loaded directly (bypass), heat, mark 120 mm above the extruder entry, extrude 100 mm slowly (`G1 E100 F60`), measure remaining; `new = old × actual/100`. Put into `overrides.cfg` `[extruder] rotation_distance`. Also reconcile with the CW2 template (open item).
+5. **Input shaper (Shake&Tune)**: verify `ACCELEROMETER_QUERY` works (ADXL on SB2040), then `AXES_SHAPER_CALIBRATION` and `COMPARE_BELTS_RESPONSES`; apply to `[input_shaper]` in `overrides.cfg`. Reports land in `~/printer_data/config/ShakeTune_results` (not tracked). Also run `CREATE_VIBRATIONS_PROFILE` once for speed/accel limits.
+6. **Bed mesh**: heated, after QGL: `BED_MESH_CALIBRATE` (Klippain adaptive mesh).
+7. **Pressure advance**: `PRESSURE_ADVANCE_CALIBRATION` (Klippain macro) per filament; store per filament in the slicer.
+8. **Flow**: `FLOW_MULTIPLIER_CALIBRATION` (Klippain macro) per filament.
+9. Snapshot: `tools/backup-calibration.sh "chore: printer calibration"`.
+
+### Phase 4 — MMU (ERCF v2, Happy Hare v4)
+
+Prerequisites: Phase 3.4 done (extruder drive known-good), Octopus/MMB firmware current, bowden tube cut and connected to the extruder entry, **filament not yet inserted** except where stated. `MMU_STATUS` currently reports required steps **`MMU_CALIBRATE_ENCODER`** and **`MMU_CALIBRATE_BOWDEN`** (it reads the old stored selector data as present — don't trust that, see 4.2).
+
+Check/adjust first: [Open items](#open-items--verify-before-trusting-the-config) (gear ratio, servo angles, toolhead dims).
+
+**4.0 Sanity (no filament)**
+* `MMU_STATUS` → ERCF v2.0, 12 gates, LinearServoSelector.
+* `MMU_TEST_CONFIG` and `MMU_HELP` to see the command set.
+* `DUMP_TMC STEPPER=…`: for MMU drivers use the stepper object names `mmu_stepper unit0_gear` / `unit0_selector`.
+* Selector microswitch: `QUERY_ENDSTOPS` should list the selector endstop; press by hand → toggles.
+* Encoder: `MMU_ENCODER` / push filament through by hand later; `Encoder reads` should change.
+
+**4.1 Servo** — `MMU_SERVO POS=up`, `POS=move`, `POS=down` (add `HELP=1`). Up = lever releases filament, down = gear grips. Adjust the angles for your servo/arm and `MMU_SERVO POS=… SAVE=1` (stored in `save_variables.cfg`). Verify nothing binds at the end of travel (listen for servo buzz).
+
+**4.2 Selector** — start from a clean slate: `MMU_CALIBRATE_SELECTOR RESET=1`. Then `MMU_CALIBRATE_SELECTOR AUTO=1` with gate 0 selected (uses the selector endstop; for 12 gates you may need `GATE=…`/`EXTRAPOLATE=1` per `HELP=1`). Then `MMU_CALIBRATE_SELECTOR BYPASS=1` for the bypass position. Verify: `MMU_SELECT GATE=0`, `GATE=5`, `GATE=11`, `MMU_SELECT_BYPASS` — selector should centre on each lane. `MMU_HOME` afterwards.
+
+**4.3 Gear stepper** — gate 0, filament inserted into the gate: `MMU_CALIBRATE_GEAR` (moves 100 mm; measure the actual move and rerun with `MEASURED=<mm>`). With `variable_rotation_distances: 1`, this value is for gate 0 (the reference).
+
+**4.4 Encoder** — `MMU_CALIBRATE_ENCODER` (gate 0; default 3 × 400 mm; needs ~1 m of free filament path). Result → `mmu_calibration_0` in `save_variables.cfg` (currently placeholder `1.0`).
+
+**4.5 Other gates** — load filament in gates, then `MMU_CALIBRATE_GATES ALL=1` (calibrates each gate's gear rotation distance against the encoder reference). Optional but recommended with 12 individually-measured gates.
+
+**4.6 Bowden length** — `MMU_CALIBRATE_BOWDEN` with gate 0 selected, bowden connected, filament in gate. With no toolhead sensor this uses **collision with the extruder gears via the encoder** (add `COLLISION=1` or `MANUAL=1` if HH asks; `BOWDEN_LENGTH=<approx>` if bowden is longer than the default search). `bowden_homing_max` is 2000 mm.
+
+**4.7 Toolhead dimensions** — no sensor → set manually in `mmu/base/mmu.cfg` `[mmu_toolhead default]`:
+`toolhead_extruder_to_nozzle`, `toolhead_entry_to_extruder`, `toolhead_residual_filament`. Measure extruder-gear→nozzle by marking filament on a cold nozzle (extruder gears → melt zone), or start from the matching HH preset and tune with `MMU_TEST_LOAD`/ test prints. Then `RESTART`.
+
+**4.8 First loads/unloads** — `MMU_SELECT GATE=0`, `MMU_PRELOAD`, `MMU_LOAD` (hot nozzle, ≥ min extrude temp), `MMU_UNLOAD`. Watch for grinding, slipping at the encoder, and the servo timing. Do the same on bypass (`MMU_SELECT_BYPASS`, `MMU_LOAD`).
+
+**4.9 Tool change test** — `T1` then `T0` etc. with cold-safe temperatures set, with the purge bucket/Blobifier area clear (Klippain/HH purge macros are active). Run `MMU_CHECK_GATE` to refresh gate map.
+
+**4.10 Behaviour tuning (after it works)** — `sync_to_extruder`, `flowguard_*`, `tip forming` (`_MMU_FORM_TIP` vars in `mmu_macro_vars.cfg`; `MMU_TEST_FORM_TIP`), purge volumes. Leave Spoolman off until the MMU is stable (`spoolman_support: off`).
+
+Snapshot: `tools/backup-calibration.sh --push "chore: MMU calibration"`.
+
+### Phase 5 — First prints
+
+1. Single-colour print from **bypass**, then from gate 0 via the MMU.
+2. Slicer: see [Slicer setup](#slicer-setup). Multi-colour test with 2 tools, then more.
+3. Keep `variable_mmu_check_gates_on_start_print: False` until `TOOLS_USED=!referenced_tools!` is in the slicer start gcode, then set it to `True`.
+
+---
+
+## Camera
+
+* Hardware: Logitech Brio 100 on the Pi's USB. Crowsnest runs `ustreamer`, nginx proxies it at `/webcam/`.
+* `crowsnest.conf [cam 1]`: device `/dev/v4l/by-id/usb-046d_Brio_100_2502APELK228-video-index0` (stable across reboots; `index0` is the capture node), `1280x720` MJPG, `15 fps`, port `8080`.
+* `moonraker.conf [webcam printer]`: `mjpegstreamer`, stream `/webcam/?action=stream`, snapshot `/webcam/?action=snapshot`, 16:9 — appears automatically in Mainsail (Settings → Webcams shows it as config-sourced).
+* Verified: snapshot `1280x720`, HTTP 200. Test: `curl -s -o /tmp/s.jpg -w '%{http_code}\n' http://voron24.jerrettdavis.com/webcam/?action=snapshot`.
+* The Brio 100 also does 1920×1080 MJPG; raise `resolution:` if the Pi CPU allows. Flip/rotate in Mainsail's webcam settings (or `rotation:`/`flip_*:` in the Moonraker section).
+* If the stream dies: `sudo journalctl -u crowsnest -n 50`; `v4l2-ctl --list-devices`; replug USB; `sudo systemctl restart crowsnest`.
+* Timelapse (`moonraker-timelapse` is present on the Pi) can reuse the same snapshot URL; not enabled in this config yet.
+
+---
+
+## Slicer setup
+
+Klippain `START_PRINT` takes (names as read from the macro): `BED_TEMP`, `EXTRUDER_TEMP`, `CHAMBER_TEMP`, `MATERIAL`, `SIZE` (first-layer bbox for adaptive mesh), `INITIAL_TOOL`, `TOOLS_USED`.
+
+PrusaSlicer/OrcaSlicer start G-code (single tool):
+
+```gcode
+START_PRINT BED_TEMP=[first_layer_bed_temperature] EXTRUDER_TEMP=[nozzle_temperature_initial_layer] CHAMBER_TEMP=[chamber_temperature] MATERIAL={filament_type[initial_tool]} SIZE={first_layer_print_min[0]}_{first_layer_print_min[1]}_{first_layer_print_max[0]}_{first_layer_print_max[1]} INITIAL_TOOL={initial_tool} TOOLS_USED=!referenced_tools!
+```
+
+(Adjust placeholders to your slicer's variable names — Orca uses `{first_layer_print_min[0]}` style similarly.) End G-code: `END_PRINT`.
+
+Printer profile for the MMU: single extruder, multi-material **tool change G-code `T[next_extruder]`**, no purge tower from the slicer if you use HH's purge, `Toolchange` handled by Happy Hare (`mmu_server.enable_file_preprocessor: True`, `enable_toolchange_next_pos: True` in `moonraker.conf`). Per Klippain docs, `TOOLS_USED=!referenced_tools!` is required for the gate pre-check.
+
+---
+
+## Maintenance: updates, backups, restore, validation
+
+### Validate (read-only, any time)
+
+```bash
+~/printer_data/config/tools/validate.sh
+```
+
+Checks: services, `can0` (up, 1 Mbit), all three MCUs + firmware vs host, Klipper `ready`, Happy Hare enabled & 12 gates,
+Klippain symlinks/checkout clean, which `save_variables` file is live, webcam registered + snapshot returns a 1280×720 JPEG. Exit 1 on any `FAIL`.
+
+### Updates
+
+* Klipper, Moonraker, Mainsail, Crowsnest, Klippain Shake&Tune, Happy Hare update through **Mainsail → Machine → Update Manager** (Happy Hare and Shake&Tune have entries in `moonraker.conf`).
+* After a **Klipper** update, reflash MCUs whose firmware drifts from the host (Phase 1).
+* After a **Klippain** update: `git -C ~/klippain_config status` must stay clean; `.VERSION` records the commit this config was built against.
+* After a **Happy Hare** update: Klipper may complain about config changes. Compare with `~/Happy-Hare/config/base/*.cfg`, merge changes by hand; don't run the interactive installer blindly (see rules above).
+
+### Backups & calibration snapshots
+
+```bash
+~/printer_data/config/tools/backup-calibration.sh --push "chore: calibration snapshot"
+```
+
+Commits `save_variables.cfg`, `overrides.cfg`, `mmu/.mmu_config`, `mmu/base`, `printer.cfg`, `mcu.cfg`. Run it after every calibration phase.
+Firmware configs are in `firmware/`. Camera/Moonraker settings are in `crowsnest.conf`/`moonraker.conf` (nothing lives only in the Mainsail UI database).
+
+### Restore (fresh Pi / broken tree)
+
+1. Install base stack with KIAUH: Klipper, Moonraker, Mainsail, Crowsnest (+ `can-utils`, optional Shake&Tune venv deps via its Moonraker entry).
+2. `sudo cp tools/system/can0 /etc/network/interfaces.d/can0 && sudo ifup can0` (or `tools/restore.sh can0`).
+3. Move any default `~/printer_data/config` aside, then `git clone https://github.com/JerrettDavis/voron24-klipper ~/printer_data/config`.
+4. `~/printer_data/config/tools/restore.sh all` — clones Klippain/Happy Hare if missing, re-links Klippain symlinks and Happy Hare modules (`install.sh -f` only), installs `can0`, restarts services (Klipper only if idle). Use `--dry-run` first.
+5. Reflash MCUs if blank (Phase 1) and run `tools/validate.sh`.
+
+`tools/restore.sh` steps: `klippain`, `happyhare`, `links`, `can0`, `services`, `all`.
+
+---
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| `Timeout on connect` for `toolhead` / `unit0` | `ip -d link show can0` (1 Mbit, UP); `candump can0`; `canbus_query.py can0` (Klipper stopped); node powered; terminator jumpers (one at each end of the bus) |
+| `Unknown pin chip name 'mmu'` or alias errors in MMU config | `mcu.cfg` must define the MMB aliases against `mcu: unit0`; don't re-add the Klippain `BTT_MMB_CAN_v1.0.cfg` include |
+| MCU firmware version mismatch warning | Phase 1 reflash |
+| MMU `Selector is NOT HOMED` / lost position | `MMU_HOME` (filament out of the selector path first); if offsets are wrong re-run 4.2 |
+| Grinding at gate / encoder doesn't count | Servo angles (`MMU_SERVO`), encoder wiring (`^PA1`), `MMU_CALIBRATE_ENCODER` |
+| HH config values revert after an update | The installer re-rendered from `.mmu_config`; `git diff` and restore |
+| `Printer is ready` but no webcam | `crowsnest` journal; device path; `/server/webcams/list` should list `printer` |
+| Klipper `Config error` after editing | `sudo journalctl -u klipper -n 50` / Mainsail error; `git diff`; `git checkout -- <file>` |
+
+Useful commands: `MMU_STATUS`, `MMU_STATS`, `MMU_SENSORS`, `MMU_GATE_MAP`, `MMU_REMAP_TTG`, `MMU_RECOVER`, `MMU_MOTORS_OFF`, `MMU_UNLOCK`, `MMU_HELP`.

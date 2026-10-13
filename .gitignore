@@ -11,3 +11,8 @@ macros/
 moonraker/
 scripts/
 
+
+# Shake&Tune result PNGs/CSVs
+ShakeTune_results/
+# Local scratch
+.remember/
