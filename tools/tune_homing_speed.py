@@ -224,9 +224,7 @@ def main():
         if th["position"][2] < SAFE_Z:
             # Park Z high first (restarts leave Z unhomed) and take the camera baseline at that height:
             # the overhead camera sees the toolhead shift in the image as Z changes.
-            gcode("G90
-G1 Z%g F600
-M400" % SAFE_Z, 120)
+            gcode("G90\nG1 Z%g F600\nM400" % SAFE_Z, 120)
             time.sleep(1)
         c0 = centroid()
         if c0 == "lost":
