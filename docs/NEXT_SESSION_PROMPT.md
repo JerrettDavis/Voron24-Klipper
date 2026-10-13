@@ -1,0 +1,11 @@
+# Prompt for the next session (paste as the first message)
+
+You're continuing the bring-up of my Voron 2.4 350 (Klippain + Happy Hare v4, ERCF v2 12-gate MMU, Stealthburner/CW2, TAP, Filametrix cutter). Everything is in the repo at `G:\git\voron24-klipper` (= `~/printer_data/config` on the Pi, `ssh jd@voron24.jerrettdavis.com`).
+
+1. Read `docs/HANDOFF.md` first, then `README.md` (setup + calibration phases). Run `git pull` and, on the Pi, `~/printer_data/config/tools/validate.sh` to confirm the starting state (expect all 3 MCUs at v0.13.0-697, 0 FAIL).
+2. We're going to work **interactively** through the remaining calibration so the machine is ready to print: Phase 0 leftovers (heater/fan/LED function checks), Phase 3 (bed + hotend PID, extruder rotation_distance, Shake&Tune input shaper, hot bed mesh, pressure advance, flow), then Phase 4 (Happy Hare MMU: servo, selector reset+calibrate, gear, encoder, gates, bowden, toolhead dims, verify the Filametrix cutter positions by hand-jogging BEFORE the first unload), then loads/unloads, tool changes 0↔1↔2, and a first multi-colour print.
+3. Rules: I'm at the printer and watching the camera (overhead — it can't judge Z) with a hand on the power switch. Do safe read-only checks yourself and tell me what you see; **ask me before any new heating or motion**, give me physical steps to do (e.g. feed filament, measure a mark), and wait for my answer. Do the camera/counter-style verification after risky moves (see `tools/tune_*.py` for the pattern). Don't change homing speed/SGTHRS (60 mm/s / 145 is final) and don't run Happy Hare's `install.sh`. Use the Write/Edit tools for files containing `\n` (heredocs through Bash corrupt them). `sudo` on the Pi needs my password — ask me to run it.
+4. After each phase: commit with `tools/backup-calibration.sh --push`, update README/HANDOFF with what was verified and the measured numbers, and tell me what's next.
+5. I only have 2–3 spools at the printer and a 9-lane filament buffer; follow the "limited filament" plan in the README (offcuts for per-gate calibration, one spool for bowden). Ask me which hotend I'm running before setting toolhead dimensions.
+
+Start by summarising the current state in a few lines and propose the order for tonight's steps, then begin with the Phase 0 heater/fan checks (ask before heating).

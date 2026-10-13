@@ -14,7 +14,7 @@ Klipper configuration, restore tooling and the full bring-up/calibration checkli
 | Camera | Logitech Brio 100 (USB) → Crowsnest/ustreamer → Mainsail |
 
 > **State as of 2026-10-12:** software stack up and `Printer is ready`; **nothing is calibrated yet**.
-> Work through [Setup & calibration](#setup--calibration-in-order) top to bottom. Items in
+> **Picking this up in a new session? Read [`docs/HANDOFF.md`](docs/HANDOFF.md) (state, gotchas) and use [`docs/NEXT_SESSION_PROMPT.md`](docs/NEXT_SESSION_PROMPT.md).** Work through [Setup & calibration](#setup--calibration-in-order) top to bottom. Items in
 > [Open items](#open-items--verify-before-trusting-the-config) are config values that were reviewed
 > but need a physical check.
 
