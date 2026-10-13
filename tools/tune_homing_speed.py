@@ -265,6 +265,8 @@ def main():
     if read_speed() != good:
         restart()
     gcode("G28", 180)
+    gcode("G90\nG1 Z%g F600\nM400" % SAFE_Z, 120)   # camera baseline was taken at SAFE_Z
+    time.sleep(1)
     cam_check(base, a.px_tol, "final")
     log("OK. Commit overrides.cfg (git add overrides.cfg; git commit) to keep %g mm/s." % good)
     return 0
