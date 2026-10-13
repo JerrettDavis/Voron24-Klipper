@@ -114,7 +114,7 @@ Tick them off as you go; the calibration sections reference them.
   *If the gear behaves weakly/loudly, the 80:20 ratio is the first thing to check against your actual gear set.*
 - [x] **Pre-gate sensors** configured on pins where nothing is wired → removed (empty pins). Re-enable only if you add sensors (gates 0–7 max).
 - [x] **Camera**: now by stable by-id path, 1280×720 MJPG @ 15 fps, registered in Moonraker (`[webcam printer]`).
-- [ ] **Octopus firmware is older (`v0.12.0-93`) than the host and the other MCUs (`v0.13.0-697`).** Reflash it ([Firmware](#phase-1--firmware)) before first print.
+- [x] **Octopus firmware was older (`v0.12.0-93`)** — reflashed over USB-DFU to `v0.13.0-697` on 2026-10-12; all three MCUs now match the host.
 - [ ] **Servo angles** (`mmu_parameters_unit0.cfg`: up 160 / down 30 / move 130) are *not* HH's ERCF defaults (30 / 100 / 50 in `.mmu_config`). They only apply until you calibrate with `MMU_SERVO`; verify direction/travel **with no filament and the selector clear** before anything else.
 - [ ] **Stale MMU state in `save_variables.cfg`** from earlier experiments (selector offsets, bypass offset 273.7, statistics). Treat as uncalibrated: step 4.2 resets and redoes the selector.
 - [ ] **Toolhead dimensions** (`mmu.cfg [mmu_toolhead default]`: extruder→nozzle 72, entry→extruder 8, residual 2) are generic, and `.mmu_config` says toolhead *Other/Unknown*. Confirm your hotend; HH has presets under `~/Happy-Hare/installer/toolheads/Kconfig.stealthburner_clockwork2_*` (Revo 72/13/2, Dragon HF 70.3/12.4/30.6, Rapido HF 84.8/13/5 …) — or measure (step 4.7).
@@ -152,7 +152,20 @@ Do this **now**, before motion tests, so every MCU runs the same Klipper as the 
 `tools/validate.sh` compares each MCU's `mcu_version` with the host. Current: Octopus `v0.12.0-93-g43a9685c`;
 SB2040 & MMB `v0.13.0-697-g430a2a8a0` = host.
 
-* **Octopus (USB, STM32F446)** — `~/klipper$ make menuconfig` with: *STM32F446*, bootloader offset **32 KiB**, clock **12 MHz crystal**, communication **USB (on PA11/PA12)**. Then `make -j4`, stop Klipper, flash via your bootloader method (Katapult over USB or DFU), start Klipper. The exact Octopus `.config` wasn't saved previously; after flashing, save it as `firmware/octopus-f446.config`.
+* **Octopus (USB, STM32F446)** — config saved in `firmware/octopus-f446.config` (STM32F446, **no bootloader offset**, 12 MHz crystal, USB on PA11/PA12; built-in DFU re-entry enabled). No SD card needed — the running firmware reboots itself into the STM32 ROM DFU bootloader. Procedure (done 2026-10-12, Octopus now v0.13.0-697):
+
+  ```bash
+  cd ~/klipper
+  make olddefconfig KCONFIG_CONFIG=$HOME/printer_data/config/firmware/octopus-f446.config
+  make clean KCONFIG_CONFIG=$HOME/printer_data/config/firmware/octopus-f446.config
+  make -j4 KCONFIG_CONFIG=$HOME/printer_data/config/firmware/octopus-f446.config
+  curl -X POST "localhost:7125/machine/services/stop?service=klipper"        # stop Klipper (no sudo needed)
+  python3 ~/katapult/scripts/flashtool.py -r -d /dev/serial/by-id/usb-Klipper_stm32f446xx_44005F001251303431333234-if00   # -> board re-enumerates as 0483:df11 (DFU)
+  sudo dfu-util -a 0 -d 0483:df11 --dfuse-address 0x08000000:leave -D out/klipper.bin   # needs sudo (DFU device is root-only)
+  curl -X POST "localhost:7125/machine/services/start?service=klipper"
+  ```
+
+  `flashtool.py` prints "Device is not Katapult, exiting" — that is expected (it just proved the board entered ROM DFU). To make `dfu-util` work without `sudo`, add a udev rule (once): `/etc/udev/rules.d/99-stm32-dfu.rules` = `SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="df11", MODE="0666"`, then `sudo udevadm control --reload && sudo udevadm trigger`. If the board ever fails to come back, power-cycle it; if it's blank, BOOT0 jumper + reset gives the same DFU device.
 * **SB2040 (CAN)** — config saved in `firmware/sb2040-toolhead.config` (RP2040, CAN, 1 Mbit).
 * **MMB CAN v1.0 (CAN)** — config saved in `firmware/mmb-can-v1.0.config` (STM32G0B1, 8 MHz crystal, 8 KiB bootloader offset, CAN on PB0/PB1, 1 Mbit).
 
