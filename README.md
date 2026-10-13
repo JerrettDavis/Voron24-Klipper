@@ -297,6 +297,7 @@ Snapshot: `tools/backup-calibration.sh --push "chore: MMU calibration"`.
 * Verified: snapshot `1280x720`, HTTP 200. Test: `curl -s -o /tmp/s.jpg -w '%{http_code}\n' http://voron24.jerrettdavis.com/webcam/?action=snapshot`.
 * The Brio 100 also does 1920×1080 MJPG; raise `resolution:` if the Pi CPU allows. Flip/rotate in Mainsail's webcam settings (or `rotation:`/`flip_*:` in the Moonraker section).
 * If the stream dies: `sudo journalctl -u crowsnest -n 50`; `v4l2-ctl --list-devices`; replug USB; `sudo systemctl restart crowsnest`.
+* **Viewing angle:** the camera is a bird's-eye view of the bed, so it shows X/Y motion well but **cannot judge Z height or nozzle-to-bed gap**. Don't use it to confirm Z; use `QUERY_PROBE`/TAP and paper/feeler checks. (Z=0 was confirmed physically at the machine on 2026-10-12 — still re-run Phase 2.4 after any TAP/nozzle change.) It is good for watching the cutter run, tool changes and first-layer progress remotely.
 * Timelapse (`moonraker-timelapse` is present on the Pi) can reuse the same snapshot URL; not enabled in this config yet.
 
 ---
