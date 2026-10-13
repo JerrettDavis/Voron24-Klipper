@@ -175,6 +175,12 @@ sudo systemctl start klipper
 
 1. **Endstops/QUERY**: `QUERY_ENDSTOPS` (open/triggered), press TAP's nozzle (`QUERY_PROBE`): flips when triggered. Check **before** homing.
 2. **Motor directions & buzz**: `STEPPER_BUZZ STEPPER=stepper_x` (also `stepper_y`, `stepper_z`, `z1`, `z2`, `z3`). All Z buzzes should move the same direction visually; `stepper_z1`/`z3` directions are inverted in `overrides.cfg` (`!Z1_DIR`, `!Z3_DIR`) — confirm that matches how your Z motors are mounted.
+**Sensorless homing speed (tuning notes, 2026-10-12).** Current: `homing_speed 40` (Klippain default), `driver_SGTHRS 145` for X and Y, home corner = **back right** (both endstops at 350). A trial at 60 mm/s with `SGTHRS 215` (scaled proportionally) **mis-homed**: the stall fired early, Klipper believed it was at 350/350 while the toolhead was mid-bed, and the following moves/Z-probing drove the toolhead into the **front-left** corner. Reverted (`ba4c2de`). Rules if you try again:
+1. Change **one** thing at a time (speed *or* SGTHRS), one axis at a time, with a hand on the power switch and the camera up; stop at the first sign of a wrong stop.
+2. Do **not** scale SGTHRS blindly. Higher SGTHRS = more sensitive = false early triggers (especially during the acceleration ramp). Tune per Klipper's TMC docs (lower SGTHRS until the axis homes reliably, then add margin).
+3. After each trial home, verify the *physical* position (camera / by hand) matches Klipper before trusting it — repeated-home motor counters are not a position check.
+4. 255 is the TMC2209 max; practical ceiling is roughly 50–60 mm/s on this machine.
+
 3. **Home**: `G28 X`, then `G28 Y` (sensorless, `SGTHRS 145`; tune per Klipper's TMC docs if it stalls early/late or crashes), then `G28 Z` (TAP). Keep a hand on the switch.
 4. **TAP**: `PROBE_ACCURACY` (std dev ≲ 0.005 mm), then `PROBE_CALIBRATE`/`Z_OFFSET_APPLY_PROBE` → sets `[probe] z_offset` (currently `−0.375`; save into `overrides.cfg`). Heat nozzle to print temp for the final offset (TAP is nozzle-contact).
 5. **Gantry level**: `QUAD_GANTRY_LEVEL` (350 mm config). Repeat until the final retry is ≲ 0.005 mm.
