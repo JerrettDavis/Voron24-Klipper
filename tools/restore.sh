@@ -71,11 +71,11 @@ step_can0() {
 step_services() {
   say "Services"
   state=$(curl -fsS -m 5 "$MR/printer/objects/query?print_stats" 2>/dev/null | python3 -c 'import sys,json; print(json.load(sys.stdin)["result"]["status"]["print_stats"]["state"])' 2>/dev/null || echo unknown)
-  run curl -fsS -m 20 -X POST "$MR/machine/services/restart?service=crowsnest" >/dev/null
-  run curl -fsS -m 20 -X POST "$MR/machine/services/restart?service=moonraker" >/dev/null || true
+  run curl -fsS -m 20 -o /dev/null -X POST "$MR/machine/services/restart?service=crowsnest"
+  run curl -fsS -m 20 -o /dev/null -X POST "$MR/machine/services/restart?service=moonraker" || true
   case "$state" in
     standby|complete|cancelled|error|unknown)
-      sleep 5; run curl -fsS -m 20 -X POST "$MR/printer/restart" >/dev/null || sudo systemctl restart klipper ;;
+      sleep 5; run curl -fsS -m 20 -o /dev/null -X POST "$MR/printer/restart" || sudo systemctl restart klipper ;;
     *) echo "print_stats.state=$state: NOT restarting Klipper while printing/paused." ;;
   esac
 }
