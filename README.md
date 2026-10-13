@@ -133,13 +133,15 @@ General rules: **hands near the power switch**, bed clear, first moves slow. Add
 command (e.g. `MMU_CALIBRATE_GEAR HELP=1`) to see its parameters and examples. Run
 `tools/validate.sh` on the Pi at the start of every phase; it is read-only.
 
+**Power-on behaviour:** on every Klipper start (i.e. every machine power-on) Klippain's `_INIT_LEDS` turns the caselight on at `light_intensity_startup` (100 %) and sets the status LEDs to `READY` — enabled by `variable_caselight_on_at_startup: True` in `variables.cfg`. Intensities while printing/at end are `light_intensity_printing: 30`, `light_intensity_end_print: 0`.
+
 ### Phase 0 — Pre-flight (no motion)
 
 1. `ssh jd@voron24.jerrettdavis.com` → `~/printer_data/config/tools/validate.sh`. Expected: no `FAIL`. Known `WARN`: Octopus firmware version until step 1.
 2. In Mainsail confirm: Klipper `ready`, three MCUs (`mcu`, `toolhead`, `unit0`) with no errors, temperatures sane (bed, hotend, chamber, MCUs).
 3. Heaters: set hotend to 50 °C, bed to 40 °C briefly; verify temperatures **rise** and are attributed to the right heater; cool down. (Do before any long heating.)
 4. Fans: `SET_FAN_SPEED FAN=…` / Mainsail fan sliders — part fan, hotend fan (`heater_fan` should spin when hot), toolhead cooling fan, controller fan, Nevermore filter.
-5. LEDs/neopixels: status LEDs on the toolhead and MMB RGB light.
+5. LEDs/neopixels: caselight and status LEDs should come on by themselves after a Klipper restart (see Power-on behaviour); MMB RGB light separately.
 6. Camera: Mainsail dashboard should show the stream ([Camera](#camera)).
 7. Extruder driver: `DUMP_TMC STEPPER=extruder REGISTER=IOIN` returns a reply (`version=0x21`).
 
