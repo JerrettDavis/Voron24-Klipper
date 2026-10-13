@@ -187,6 +187,12 @@ sudo systemctl start klipper
 
 **Homing speed search tool** (`tools/tune_homing_speed.py`, run on the Pi, printer idle + homed + toolhead at X175 Y175, hand on the power switch): `tools/tune_homing_speed.py --yes [--max 70] [--step 5] [--cycles 3]`. It raises only `homing_speed` (managed block in `overrides.cfg`), restarts Klipper per speed, and after *every single home* checks (1) real travel from the stepper counters equals the distance Klipper assumes (an early stall makes it shorter), (2) both CoreXY motors agree, (3) the webcam still sees the toolhead where it was in the baseline (teal-pixel centroid, ±12 px; baseline is taken at Z30 because Z shifts the toolhead in the overhead image). On the first failure it stops moving, restores the last good speed and restarts Klipper — then **inspect the machine; the physical position is unknown**. Use `--dry-run` to see the plan.
 
+**QGL / bed-mesh speed (tuned 2026-10-12).** Measured, not guessed:
+* XY travel is already speed-capped, not accel-capped: a fast corner-loop pattern (50,25→50,275→300,275→300,25 ×8 at 400 mm/s) took 22–25 s at *every* accel from 3000 to 10000 mm/s², and `tools/tune_travel_accel.py` (lost-steps check) passed up to **8000** (the config `max_accel`); 10000 showed a 0.76 mm discrepancy. So accel was left alone (`tilting_travel_accel 3000`); `max_velocity` is 400, so travel speeds are now 400 (`variable_travel_speed`, `variable_homing_travel_speed`, `[quad_gantry_level] speed`, `[bed_mesh] speed`).
+* The old QGL took **142 s** because `retry_tolerance 0.0075` is at the noise floor (per-pass point ranges 0.0113, 0.0088, 0.0088, 0.0075 mm → 5 passes). Now `retry_tolerance 0.0125` (still ≪ layer height), `horizontal_move_z 8`, **probe `speed 10`** → **31 s, 2 passes, final range 0.0075 mm**.
+* TAP repeatability vs probe speed (`PROBE_ACCURACY SAMPLES=15`, std-dev): 5 mm/s 0.0008–0.0035, 7 → 0.0006, 10 → 0.0003–0.0010, 12 → 0.0009, 15 → 0.0012, 20 → 0.0010 mm. 10 mm/s chosen (TAP guidance is ≤10; nozzle hits the bed harder above that).
+* `BED_MESH_CALIBRATE` 9×9 (81 points): **224 s** cold (~2.8 s/point). Remaining levers if you want it faster: `probe_count` 7,7 (~135 s) or 6,6 (~100 s) in `config/software/bed_mesh` (override in `overrides.cfg [bed_mesh]`), or rely on Klippain's adaptive mesh (print-area only) in `START_PRINT`. `[probe] samples: 3` + median applies to both QGL and mesh; 1–2 samples would save ~1 s/point but is global.
+
 ### Phase 3 — Printer calibration
 
 Order matters — each step depends on the previous.
