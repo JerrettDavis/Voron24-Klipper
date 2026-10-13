@@ -197,6 +197,23 @@ Prerequisites: Phase 3.4 done (extruder drive known-good), Octopus/MMB firmware 
 
 Check/adjust first: [Open items](#open-items--verify-before-trusting-the-config) (gear ratio, servo angles, toolhead dims).
 
+### Historical values (2023 install, for sanity-checking only)
+
+From repo history (`git show 83a3060:...`, 9-gate ERCF v2 on this same printer). **Not applied** except the cutter block; use them to spot a calibration that came out wildly different:
+
+| Item | Old value | Current state |
+|---|---|---|
+| Gear `rotation_distance` (gate 0) | 22.5906 | uncalibrated (22.7317 default) |
+| Encoder resolution | 0.9475 | uncalibrated (placeholder 1.0) |
+| Bowden length | 1027.6 mm | uncalibrated (unit0 `-1`) |
+| Servo up / down / move | 115 / 48 / 112 | 160 / 30 / 130 (not validated) |
+| Gear ratio / run current | 80:20 / 1.0 A (selector 0.4 A) | 80:20 / 0.5 A (selector 0.4 A) — if the gear is weak, 1.0 A is what ran before |
+| Toolhead extruder→nozzle / sensor→nozzle | 60 / 55 | 72 / 8 entry (unmeasured) |
+| Extruder homing | collision, current 40 %, `extruder_homing_max 120` | encoder collision, current 30 % |
+| `sync_to_extruder` / `sync_gear_current` | 1 / 80 % | 0 / 100 % — enable after basic loads work |
+| Per-gate encoder multipliers | 0.98–1.007 | uncalibrated |
+| Extruder `rotation_distance` | 44.1737 | same (carried over) |
+
 ### Calibrating with limited filament (2–3 spools, 9-lane buffer)
 
 You do **not** need 12 spools to calibrate. Only **one** thing needs a full spool path (the bowden), and `variable_bowden_lengths: 0` means one bowden length serves all gates.
@@ -245,10 +262,10 @@ Practical plan: put your 2–3 spools in gates **0, 1, 2** (buffer lanes 1–3).
 
 **4.7b Filametrix cutter** — Happy Hare v4 has native support for this cutter-by-motion design (`mmu/macros/mmu_cut_tip.cfg`; its docs even use Filametrix as the example, cutting along X toward Xmin). The Filametrix page's own `additional.cfg` is **not needed** — don't add it alongside HH's macro.
 
-Config state: the `[gcode_macro _MMU_CUT_TIP_VARS]` block is present in `mmu/base/mmu_macro_vars.cfg` (and `CONFIG_MMU_HAS_TOOLHEAD_CUTTER=y` in `.mmu_config`) with **Happy Hare's default values, not yet measured for this printer**. `form_tip_macro` is deliberately **still `_MMU_FORM_TIP`** in `mmu/base/mmu.cfg` so a tool change can't drive the toolhead at an unmeasured pin position. Do this first:
+Config state: the `[gcode_macro _MMU_CUT_TIP_VARS]` block is in `mmu/base/mmu_macro_vars.cfg` (and `CONFIG_MMU_HAS_TOOLHEAD_CUTTER=y` in `.mmu_config`), pre-filled with the **values from the previously tuned install** (repo history, commit `83a3060`, 2023-12-20): pin at X13 Y19, park +35 mm (start X48), fully compressed X0.5, blade 37.5 mm, retract 25, pushback 5, rip 1 mm, fast/slow cut 33/8 mm/s, travel 166 mm/s, safe margin 45/45. `form_tip_macro` is deliberately **still `_MMU_FORM_TIP`** in `mmu/base/mmu.cfg`, so nothing can drive the toolhead to the pin until you verify them on this (rebuilt) toolhead and enable it in step 3. Do this first:
 
-1. Mechanical (per the Filametrix page): blade is a type-4 hobby scalpel blade cut to 26 mm; the knife holder must slide up/down without friction; the depressor on the gantry must line up with the depression on the cutting arm. Home, then jog by hand at low speed (`G1 X.. Y.. F1500`) to find where the arm *just touches* the depressor pin → this is **`pin_loc_xy`** (`14, 250` default is a placeholder). Keep jogging until fully compressed, leaving a few mm from the frame → **`pin_loc_compressed_xy`**. Cut direction is X toward Xmin (`cutting_axis: 'x'`, `pin_park_dist` positive).
-2. Measure nozzle-tip→blade distance → **`blade_pos`** (default 37.5). Set **`retract_length`** ≈ `blade_pos − 5`, **`pushback_length`** ≈ PTFE length + 3 mm (default 15). Also set the toolhead dimensions in step 4.7 (`toolhead_ooze_reduction` residual is subtracted from `retract_length`).
+1. Mechanical (per the Filametrix page): blade is a type-4 hobby scalpel blade cut to 26 mm; the knife holder must slide up/down without friction; the depressor on the gantry must line up with the depression on the cutting arm. Home, then jog by hand at low speed (`G1 X.. Y.. F1500`) to find where the arm *just touches* the depressor pin → this is **`pin_loc_xy`** (old install: `13, 19`; should match what you find). Keep jogging until fully compressed, leaving a few mm from the frame → **`pin_loc_compressed_xy`**. Cut direction is X toward Xmin (`cutting_axis: 'x'`, `pin_park_dist` positive).
+2. Re-measure nozzle-tip→blade distance → **`blade_pos`** (old install: 37.5). **`retract_length`** must be < `blade_pos` (old: 25), **`pushback_length`** ≈ PTFE length + 3 mm (old: 5; HH default 15). Also set the toolhead dimensions in step 4.7 (`toolhead_ooze_reduction` residual is subtracted from `retract_length`).
 3. Edit these in `mmu/base/mmu_macro_vars.cfg`, `RESTART`. Then set `form_tip_macro : _MMU_CUT_TIP` in `mmu/base/mmu.cfg` (keep `force_form_tip_standalone : 1`) and `RESTART`. Keep a hand on the switch.
 4. Test cold-safe first: with filament loaded and hot, run `MMU_TEST_FORM_TIP` (HH runs the cut macro). Watch the first cuts at slow speed; raise `cut_fast_move_speed` only if the cut is clean. Check the filament end: clean cut, no nail-head left in the heat break; increase `pushback_length` if loads jam. If cuts are partial, raise `cut_iterations` or `cut_stepper_current` (≤150 %).
 5. Clog/clean-up: cut fragments are pushed back into the hotend (`pushback_length`); a blade-life counter warns after `variable_cutter_blade_limit` (3000) cuts.
@@ -308,6 +325,10 @@ Printer profile for the MMU: single extruder, multi-material **tool change G-cod
 
 Checks: services, `can0` (up, 1 Mbit), all three MCUs + firmware vs host, Klipper `ready`, Happy Hare enabled & 12 gates,
 Klippain symlinks/checkout clean, which `save_variables` file is live, webcam registered + snapshot returns a 1280×720 JPEG. Exit 1 on any `FAIL`.
+
+### Making config changes
+
+1. Edit on the Pi (Mainsail editor) or in this repo and `git pull` on the Pi. 2. `RESTART` (or `FIRMWARE_RESTART` for MCU changes) and check Mainsail shows `Printer is ready`. 3. Run `tools/validate.sh`. 4. Commit (`tools/backup-calibration.sh` for calibration files, otherwise `git commit`) and `git push`. Never edit through the Klippain symlinks.
 
 ### Updates
 
