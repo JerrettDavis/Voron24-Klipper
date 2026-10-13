@@ -16,3 +16,4 @@ scripts/
 ShakeTune_results/
 # Local scratch
 .remember/
+__pycache__/
