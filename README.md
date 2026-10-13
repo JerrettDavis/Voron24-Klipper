@@ -197,6 +197,30 @@ Prerequisites: Phase 3.4 done (extruder drive known-good), Octopus/MMB firmware 
 
 Check/adjust first: [Open items](#open-items--verify-before-trusting-the-config) (gear ratio, servo angles, toolhead dims).
 
+### Calibrating with limited filament (2–3 spools, 9-lane buffer)
+
+You do **not** need 12 spools to calibrate. Only **one** thing needs a full spool path (the bowden), and `variable_bowden_lengths: 0` means one bowden length serves all gates.
+
+| Calibration | What it needs | Notes |
+|---|---|---|
+| Servo, selector, bypass position (4.1–4.2) | **No filament** | Do all gates for free |
+| Gear `rotation_distance` gate 0 (4.3) | ~250 mm of filament in gate 0 | Reference gate |
+| Encoder (4.4) | ≥ 450 mm free filament beyond gate 0 (spool or loose length) | `MMU_CALIBRATE_ENCODER LENGTH=200 REPEATS=5` needs only ~250 mm if space is tight |
+| Other gates (4.5) | ~250 mm **offcut** in each gate, *not* a spool | Run `MMU_CALIBRATE_GATE GATE=n` per gate (or `ALL=1` with offcuts everywhere). Uncalibrated gates keep the default until done — they're usable, just less accurate |
+| Bowden (4.6) | One spool, gate 0, bowden connected to the extruder | Single value for all gates |
+| Toolhead / cutter (4.7–4.7b) | One loaded gate | Use the same spool |
+
+Practical plan: put your 2–3 spools in gates **0, 1, 2** (buffer lanes 1–3). Put **≥ 300 mm offcuts** in the remaining gates only for the gate-calibration pass, then pull them. The old buffer has 9 lanes, so gates **9–11 have no buffer lane**: either feed them from a spool direct (not recommended — tangles/drag skew the encoder) or leave them unused/unspooled until a 12-lane buffer exists. Calibration of those three gates can still be done with offcuts. Re-run `MMU_CALIBRATE_GATE GATE=n` for a gate when you first load a different filament type/brand in it.
+
+**Order that minimises filament handling**
+1. No filament: 4.0 → 4.1 servo → 4.2 selector (+ bypass).
+2. Spool A in gate 0 (+ buffer): 4.3 gear → 4.4 encoder → 4.6 bowden.
+3. Toolhead (4.7), cutter measurements (4.7b).
+4. Offcuts into gates 1–11 one by one (or ALL=1): 4.5.
+5. 4.8 loads/unloads on gates 0–2 with real spools; 4.9 tool changes **0↔1↔2** only — enough to prove tip-cut, purge and sync behaviour.
+6. `tools/backup-calibration.sh --push "chore: MMU calibration"`.
+7. Test print with 2–3 colours (Phase 5).
+
 **4.0 Sanity (no filament)**
 * `MMU_STATUS` → ERCF v2.0, 12 gates, LinearServoSelector.
 * `MMU_TEST_CONFIG` and `MMU_HELP` to see the command set.
