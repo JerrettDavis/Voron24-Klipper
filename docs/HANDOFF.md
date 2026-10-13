@@ -1,4 +1,4 @@
-# Handoff — voron24 bring-up (written 2026-10-12, ~22:05 CDT)
+# Handoff — voron24 bring-up (written 2026-10-12 ~22:05 CDT; updated end of session ~23:40 CDT)
 
 Read `README.md` first (full hardware, layout, ordered calibration plan). This file is *state + gotchas*.
 
@@ -32,14 +32,17 @@ MMB board_pins inlined in `mcu.cfg` (Klippain checkout kept clean); extruder TMC
 - **Before the first unload/tool change:** jog by hand (slow, `F1500`) to X54 Y20 → X19 (first touch) → X6.5 (full compression), confirm arm fully compresses and nothing hits. Revert switch: `form_tip_macro : _MMU_FORM_TIP`.
 
 ## NOT done yet (this is the work for next session)
-Follow README Phase 0 → 5. Status:
-1. **Phase 0 remainder:** heater/fan/LED/Nevermore function tests (short, low temp), `QUERY_ENDSTOPS`.
-2. **Phase 2 remainder:** nothing critical (home/QGL/TAP all work); re-check TAP z_offset (`-0.375` in `overrides.cfg`, carried over) hot.
-3. **Phase 3 — printer calibration (none done):** bed PID, hotend PID (carried-over PIDs), extruder `rotation_distance` (overrides has 44.17 vs Klippain CW2 template 22.68/50:10 — unresolved; needs filament in bypass), Shake&Tune input shaper (current 87.8 2hump_ei / 36.6 mzv are carried over), hot bed mesh, pressure advance, flow.
-4. **Phase 4 — MMU (none done):** `MMU_SERVO` (current angles 160/30/130 unvalidated; old install used 115/48/112), `MMU_CALIBRATE_SELECTOR RESET=1` then `AUTO=1` (+ `BYPASS=1`; **stale selector data in `save_variables.cfg`**), gear (gate 0), encoder, gates, bowden (collision method, no toolhead sensor), toolhead dims set by hand (72/8/2 are generic; **hotend model unknown**), cutter verification above, loads/unloads, tool changes 0↔1↔2.
-5. **Phase 5:** slicer start G-code (in README), test prints.
+Follow README Phase 0 → 5. Status (updated end of session 2026-10-12/13):
+1. **Phase 0: DONE.** **Phase 2:** nothing critical left; re-check TAP z_offset (`-0.375` in `overrides.cfg`, carried over) with a hot bed.
+2. **Phase 3 so far:**
+   - **Bed PID DONE** (100 °C): `49.474 / 1.527 / 400.736` (was 38.473/1.110/333.276) → `overrides.cfg`, loaded.
+   - **Hotend PID DONE** (250 °C, part fan 50 %): `27.601 / 1.786 / 106.609` (was 28.688/1.821/122.960) → `overrides.cfg`, loaded.
+   - **Extruder `rotation_distance` IN PROGRESS, result not measured.** PLA was hand-fed into the extruder (bypass, MMU not involved), marked 120 mm above the extruder entry, hotend at 210 °C, `G1 E100 F60` executed fine. The user stopped for the night before measuring how far the mark moved, and turned the heaters off. **The filament is probably still sitting in the extruder** (cold-pull or retract it before the MMU steps). To redo: heat to 210, re-mark, extrude 100, `new = old × (100 / actual_moved)` where actual_moved = 120 − remaining mm. Current value 44.1737 (carried over) vs Klippain CW2 template 22.68/50:10 — unresolved.
+   - **Still to do:** Shake&Tune input shaper (current 87.8 2hump_ei / 36.6 mzv are carried over), hot bed mesh, pressure advance, flow.
+3. **Phase 4 so far:** servo + selector DONE (see "MMU servo + selector done" above). **Still to do:** gear (gate 0), encoder, gates, bowden (collision method, no toolhead sensor), toolhead dims by hand (**hotend = Dragon HF/UHF** — confirm which, then measure extruder-gear→nozzle; 72/8/2 are generic), Filametrix cutter hand-jog verification (BEFORE first unload), loads/unloads, tool changes 0↔1↔2. Also recheck the `mmu_gear_touch`/`mmu_sel_touch` TRIGGERED reading in `QUERY_ENDSTOPS` with no filament, and `MMU_STATUS` still lists MMU_CALIBRATE_ENCODER/BOWDEN as required.
+4. **Phase 5:** slicer start G-code (in README), test prints.
 - Filament situation: only 2–3 spools at the printer; old buffer has **9 lanes** (gates 9–11 have no buffer lane). README has the "limited filament" plan (offcuts for per-gate calibration, one spool for bowden).
-- Open questions for the user: hotend model; whether MMB RGB LED/anything else needs setup; confirm `variable_*` defaults in `variables.cfg` (park/purge positions) — it's still the stock Klippain template.
+- Open questions for the user: whether MMB RGB LED/anything else needs setup; confirm `variable_*` defaults in `variables.cfg` (park/purge positions) — it's still the stock Klippain template.
 
 ## Gotchas learned (save yourself time)
 - **Bash tool + heredocs:** `\n` inside Python/shell heredocs written through the Bash tool turns into real newlines (broke `tune_homing_speed.py` twice). Create/modify files with the Write/Edit tools, not shell heredocs, whenever strings contain `\n`.
@@ -48,6 +51,10 @@ Follow README Phase 0 → 5. Status:
 - `tools/tune_homing_speed.py` rewrites the managed block in `overrides.cfg` (speed + SGTHRS) on the Pi; commit it after a run.
 - **Never run Happy Hare's `./install.sh` / `-i`** (re-renders `mmu/base/*.cfg` from `.mmu_config`). Only `install.sh -f`.
 - Klippain's `G28` after a Klipper restart needs Z re-homed; restarts leave Z unhomed and motors idle — park Z high before restart if XY homing tests follow.
+- **Applying calibration values:** edit `overrides.cfg` (Edit tool) → commit/push → `git stash; git pull --ff-only; git stash pop` on the Pi → `POST /printer/restart`. Don't use `SAVE_CONFIG`. The Pi's `save_variables.cfg` is always dirty (HH stats), and `tools/backup-calibration.sh --push` on the Pi creates commits ahead of your local clone — `git pull --rebase` locally before pushing.
+- **`ANGLE=` on `MMU_SERVO` is ignored and `SAVE=1` saves HH's last commanded angle** — set servo angles in `mmu_parameters_unit0.cfg` (+ `MMU_SERVO RESET=1` and restart), not with MMU_SERVO.
+- Auto-mode denied a sed edit of `save_variables.cfg` over ssh until the user explicitly approved it via the question tool — ask first for hand edits of HH vars.
+- Use the Grep tool, not `grep` through Bash, for patterns with `\|` (the rtk wrapper mangles them). Complex multi-line ssh quoting broke once; write a script file with the Write tool and pipe it into `ssh … 'python3 -'`.
 - `rtk` in the shell prints "Failed to resolve 'rg'" noise; harmless.
 - Stray `~/voron24-klipper` (broken `/home/pi` symlinks) and old `*.old-*`/`printer_config_backup_*` dirs on the Pi are unused.
 
