@@ -235,7 +235,7 @@ From repo history (`git show 83a3060:...`, 9-gate ERCF v2 on this same printer).
 | Gear `rotation_distance` (gate 0) | 22.5906 | uncalibrated (22.7317 default) |
 | Encoder resolution | 0.9475 | uncalibrated (placeholder 1.0) |
 | Bowden length | 1027.6 mm | uncalibrated (unit0 `-1`) |
-| Servo up / down / move | 115 / 48 / 112 | 160 / 30 / 130 (not validated) |
+| Servo up / down / move | 115 / 48 / 112 | 160 / 30 / 125 (validated 2026-10-12) |
 | Gear ratio / run current | 80:20 / 1.0 A (selector 0.4 A) | 80:20 / 0.5 A (selector 0.4 A) — if the gear is weak, 1.0 A is what ran before |
 | Toolhead extruder→nozzle / sensor→nozzle | 60 / 55 | 72 / 8 entry (unmeasured) |
 | Extruder homing | collision, current 40 %, `extruder_homing_max 120` | encoder collision, current 30 % |
