@@ -17,3 +17,4 @@ ShakeTune_results/
 # Local scratch
 .remember/
 __pycache__/
+firmware/*.old
