@@ -19,6 +19,8 @@ Read `README.md` first (full hardware, layout, ordered calibration plan). This f
 - Caselight + status LEDs turn on at every Klipper start (`caselight_on_at_startup: True`).
 - Phase-0 read-only checks done at 22:02: all temps sane (bed 24 °C, hotend 25.6 °C, chamber 23.5 °C, MCUs 30–46 °C), ADXL345 on the SB2040 returns data, extruder TMC2209 answers (IOIN version 0x21), `QUERY_PROBE` = open.
 
+- **Phase 0 complete (2026-10-12 22:15):** hotend 50 °C / bed 40 °C reached and attributed correctly (hotend 25→~52 in ~25 s with ~2 °C overshoot; bed 24→40 in ~70 s at max_power 0.75); hotend fan 100 % and toolhead fan 80 % came on when hot; part fan, Nevermore (`fan_generic filter`), controller fan confirmed spinning by user; caselight + status LEDs on. `QUERY_ENDSTOPS`: XYZ open (mid-bed), `mmu_gear_touch`/`mmu_sel_home`/`mmu_sel_touch` read TRIGGERED with no filament (recheck in 4.0). MMU gear/selector TMC2209 answer (use `STEPPER=unit0_gear` / `unit0_selector`). No tach on any fan (rpm None).
+
 ## Config changes made this session (all committed)
 MMB board_pins inlined in `mcu.cfg` (Klippain checkout kept clean); extruder TMC2209 enabled; MMU set to ERCF v2.0 defaults (gear 80:20, 0.5 A; selector 0.4 A; 12 gates; no pre-gate sensors; `.mmu_config` synced); camera/moonraker webcam; **Filametrix cutter enabled** (`form_tip_macro: _MMU_CUT_TIP`); homing/QGL/mesh speed settings; LEDs on at startup.
 

@@ -270,7 +270,7 @@ Practical plan: put your 2–3 spools in gates **0, 1, 2** (buffer lanes 1–3).
 **4.0 Sanity (no filament)**
 * `MMU_STATUS` → ERCF v2.0, 12 gates, LinearServoSelector.
 * `MMU_TEST_CONFIG` and `MMU_HELP` to see the command set.
-* `DUMP_TMC STEPPER=…`: for MMU drivers use the stepper object names `mmu_stepper unit0_gear` / `unit0_selector`.
+* `DUMP_TMC STEPPER=…`: for MMU drivers use the stepper object names `unit0_gear` / `unit0_selector`.
 * Selector microswitch: `QUERY_ENDSTOPS` should list the selector endstop; press by hand → toggles.
 * Encoder: `MMU_ENCODER` / push filament through by hand later; `Encoder reads` should change.
 
