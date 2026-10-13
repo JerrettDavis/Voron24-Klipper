@@ -120,7 +120,7 @@ Tick them off as you go; the calibration sections reference them.
 - [ ] **Toolhead dimensions** (`mmu.cfg [mmu_toolhead default]`: extruder→nozzle 72, entry→extruder 8, residual 2) are generic, and `.mmu_config` says toolhead *Other/Unknown*. Confirm your hotend; HH has presets under `~/Happy-Hare/installer/toolheads/Kconfig.stealthburner_clockwork2_*` (Revo 72/13/2, Dragon HF 70.3/12.4/30.6, Rapido HF 84.8/13/5 …) — or measure (step 4.7).
 - [ ] **Filametrix cutter** vars are Happy Hare defaults, unmeasured, and inactive (`form_tip_macro` still `_MMU_FORM_TIP`); see step 4.7b before enabling.
 - [ ] **No toolhead/extruder sensor.** `MMU_CALIBRATE_TOOLHEAD` homes to the toolhead sensor, so it can't run; set dimensions manually. Extruder homing uses the encoder (collision) — expected for ERCF without a sensor.
-- [ ] **Extruder `rotation_distance: 44.1737` in `overrides.cfg`** is carried over from the old setup, while Klippain's CW2 template uses `22.6789511` with `gear_ratio 50:10` and `microsteps: 32` (override sets 16). Recalibrate (step 3.8) rather than trust it.
+- [x] **Extruder `rotation_distance`** was 44.1737 (carried over; wrong). Recalibrated 2026-10-13 at 210 °C: **22.27** (verified: 100 mm commanded → 100 mm moved). Also found the **extruder direction reversed** → `dir_pin: !toolhead:E_DIR` in `mcu.cfg`.
 - [ ] **Carried-over tuning** (PID, input shaper `87.8/2hump_ei` & `36.6/mzv`, TAP `z_offset −0.375`, `SGTHRS 145`) came from the previous install — re-measure, don't assume.
 - [ ] `variables.cfg` is the unmodified Klippain template (park positions, soak times, `mmu_*` flags, purge). Review once.
 - [ ] A stray clone `~/voron24-klipper` exists on the Pi with broken `/home/pi/...` symlinks. It is unused; delete it when convenient (`rm -rf ~/voron24-klipper`). Old `*.old-*`, `mmu.old-*` and `~/printer_config_backup_*` copies are safe to remove once you're happy.
@@ -241,7 +241,7 @@ From repo history (`git show 83a3060:...`, 9-gate ERCF v2 on this same printer).
 | Extruder homing | collision, current 40 %, `extruder_homing_max 120` | encoder collision, current 30 % |
 | `sync_to_extruder` / `sync_gear_current` | 1 / 80 % | 0 / 100 % — enable after basic loads work |
 | Per-gate encoder multipliers | 0.98–1.007 | uncalibrated |
-| Extruder `rotation_distance` | 44.1737 | same (carried over) |
+| Extruder `rotation_distance` | 44.1737 | **22.27** (measured 2026-10-13) |
 
 ### Calibrating with limited filament (2–3 spools, 9-lane buffer)
 
