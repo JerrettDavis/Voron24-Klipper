@@ -8,6 +8,7 @@ Klipper configuration, restore tooling and the full bring-up/calibration checkli
 | Printer | LDO Voron 2.4 350 mm kit, CoreXY, 4× Z + QGL, Stealthburner + Clockwork 2, Voron TAP |
 | Boards | BTT Octopus (main, USB) · Mellow SB2040 v1 (toolhead, CAN) · BTT MMB CAN v1.0 (MMU, CAN) |
 | MMU | ERCF **v2.0**, 12 gates ("carrot" blocks), LinearServoSelector, encoder, bypass, **no** toolhead/pre-gate sensors |
+| Filament cutter | [Filametrix](https://github.com/sorted01/Filametrix) toolhead cutter (blade on the Stealthburner, pressed by a depressor pin on the gantry/frame) — via Happy Hare's built-in `_MMU_CUT_TIP` |
 | Host | Raspberry Pi (`voron24`), Raspberry Pi OS Bookworm, CAN via USB-CAN adapter (`can0`, 1 Mbit) |
 | Config framework | [Klippain](https://github.com/Frix-x/klippain) (pinned in `.VERSION`) + [Happy Hare](https://github.com/moggieuk/Happy-Hare) v4 |
 | Camera | Logitech Brio 100 (USB) → Crowsnest/ustreamer → Mainsail |
@@ -117,6 +118,7 @@ Tick them off as you go; the calibration sections reference them.
 - [ ] **Servo angles** (`mmu_parameters_unit0.cfg`: up 160 / down 30 / move 130) are *not* HH's ERCF defaults (30 / 100 / 50 in `.mmu_config`). They only apply until you calibrate with `MMU_SERVO`; verify direction/travel **with no filament and the selector clear** before anything else.
 - [ ] **Stale MMU state in `save_variables.cfg`** from earlier experiments (selector offsets, bypass offset 273.7, statistics). Treat as uncalibrated: step 4.2 resets and redoes the selector.
 - [ ] **Toolhead dimensions** (`mmu.cfg [mmu_toolhead default]`: extruder→nozzle 72, entry→extruder 8, residual 2) are generic, and `.mmu_config` says toolhead *Other/Unknown*. Confirm your hotend; HH has presets under `~/Happy-Hare/installer/toolheads/Kconfig.stealthburner_clockwork2_*` (Revo 72/13/2, Dragon HF 70.3/12.4/30.6, Rapido HF 84.8/13/5 …) — or measure (step 4.7).
+- [ ] **Filametrix cutter** vars are Happy Hare defaults, unmeasured, and inactive (`form_tip_macro` still `_MMU_FORM_TIP`); see step 4.7b before enabling.
 - [ ] **No toolhead/extruder sensor.** `MMU_CALIBRATE_TOOLHEAD` homes to the toolhead sensor, so it can't run; set dimensions manually. Extruder homing uses the encoder (collision) — expected for ERCF without a sensor.
 - [ ] **Extruder `rotation_distance: 44.1737` in `overrides.cfg`** is carried over from the old setup, while Klippain's CW2 template uses `22.6789511` with `gear_ratio 50:10` and `microsteps: 32` (override sets 16). Recalibrate (step 3.8) rather than trust it.
 - [ ] **Carried-over tuning** (PID, input shaper `87.8/2hump_ei` & `36.6/mzv`, TAP `z_offset −0.375`, `SGTHRS 145`) came from the previous install — re-measure, don't assume.
@@ -216,6 +218,17 @@ Check/adjust first: [Open items](#open-items--verify-before-trusting-the-config)
 
 **4.7 Toolhead dimensions** — no sensor → set manually in `mmu/base/mmu.cfg` `[mmu_toolhead default]`:
 `toolhead_extruder_to_nozzle`, `toolhead_entry_to_extruder`, `toolhead_residual_filament`. Measure extruder-gear→nozzle by marking filament on a cold nozzle (extruder gears → melt zone), or start from the matching HH preset and tune with `MMU_TEST_LOAD`/ test prints. Then `RESTART`.
+
+**4.7b Filametrix cutter** — Happy Hare v4 has native support for this cutter-by-motion design (`mmu/macros/mmu_cut_tip.cfg`; its docs even use Filametrix as the example, cutting along X toward Xmin). The Filametrix page's own `additional.cfg` is **not needed** — don't add it alongside HH's macro.
+
+Config state: the `[gcode_macro _MMU_CUT_TIP_VARS]` block is present in `mmu/base/mmu_macro_vars.cfg` (and `CONFIG_MMU_HAS_TOOLHEAD_CUTTER=y` in `.mmu_config`) with **Happy Hare's default values, not yet measured for this printer**. `form_tip_macro` is deliberately **still `_MMU_FORM_TIP`** in `mmu/base/mmu.cfg` so a tool change can't drive the toolhead at an unmeasured pin position. Do this first:
+
+1. Mechanical (per the Filametrix page): blade is a type-4 hobby scalpel blade cut to 26 mm; the knife holder must slide up/down without friction; the depressor on the gantry must line up with the depression on the cutting arm. Home, then jog by hand at low speed (`G1 X.. Y.. F1500`) to find where the arm *just touches* the depressor pin → this is **`pin_loc_xy`** (`14, 250` default is a placeholder). Keep jogging until fully compressed, leaving a few mm from the frame → **`pin_loc_compressed_xy`**. Cut direction is X toward Xmin (`cutting_axis: 'x'`, `pin_park_dist` positive).
+2. Measure nozzle-tip→blade distance → **`blade_pos`** (default 37.5). Set **`retract_length`** ≈ `blade_pos − 5`, **`pushback_length`** ≈ PTFE length + 3 mm (default 15). Also set the toolhead dimensions in step 4.7 (`toolhead_ooze_reduction` residual is subtracted from `retract_length`).
+3. Edit these in `mmu/base/mmu_macro_vars.cfg`, `RESTART`. Then set `form_tip_macro : _MMU_CUT_TIP` in `mmu/base/mmu.cfg` (keep `force_form_tip_standalone : 1`) and `RESTART`. Keep a hand on the switch.
+4. Test cold-safe first: with filament loaded and hot, run `MMU_TEST_FORM_TIP` (HH runs the cut macro). Watch the first cuts at slow speed; raise `cut_fast_move_speed` only if the cut is clean. Check the filament end: clean cut, no nail-head left in the heat break; increase `pushback_length` if loads jam. If cuts are partial, raise `cut_iterations` or `cut_stepper_current` (≤150 %).
+5. Clog/clean-up: cut fragments are pushed back into the hotend (`pushback_length`); a blade-life counter warns after `variable_cutter_blade_limit` (3000) cuts.
+6. Gantry-servo variant (`gantry_servo_enabled`) is *not* used here (the Filametrix page's servo section is "tbd").
 
 **4.8 First loads/unloads** — `MMU_SELECT GATE=0`, `MMU_PRELOAD`, `MMU_LOAD` (hot nozzle, ≥ min extrude temp), `MMU_UNLOAD`. Watch for grinding, slipping at the encoder, and the servo timing. Do the same on bypass (`MMU_SELECT_BYPASS`, `MMU_LOAD`).
 
