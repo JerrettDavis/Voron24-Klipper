@@ -68,6 +68,8 @@ The machine has a **nozzle brush and a purge bucket**. Goal: Bambu-style automat
 - Hot vs cold behaviour per trigger (a `HOT=0/1` parameter on one `CLEAN_NOZZLE` macro is the likely shape).
 - Check the existing Klippain/Happy Hare macros for brush/bucket support first before writing new ones.
 
+**Update 2026-10-14:** positions recovered from the 2023 install (commit 9148726) and enabled in `variables.cfg`: brush centre X103 Y350 Z0.5, bucket X50 Y350 Z15, `purge_and_brush_enabled: True`. Nozzle was parked over both at Z15 (not lowered); physical confirmation pending. Klippain already ships `CLEAN_NOZZLE` / `PURGE` (`macros/helpers/nozzle_cleaning.cfg`) and `_MODULE_CLEAN` in START_PRINT. Hooks still to write: pre-probe wipe (QGL / mesh / Z home), PRINT_END, Happy Hare post-load / post-unload / `user_post_form_tip_extension` (`mmu_macro_vars.cfg`).
+
 ## Gotchas learned (save yourself time)
 - **Bash tool + heredocs:** `\n` inside Python/shell heredocs written through the Bash tool turns into real newlines (broke `tune_homing_speed.py` twice). Create/modify files with the Write/Edit tools, not shell heredocs, whenever strings contain `\n`.
 - Auto-mode permission denials occurred on some remote writes/restarts and a few "enable cutter" style actions; when the user says "go", it succeeded. Don't try to bypass a denial — explain and ask.
