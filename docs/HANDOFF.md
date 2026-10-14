@@ -45,6 +45,13 @@ Follow README Phase 0 → 5. Status (updated end of session 2026-10-12/13):
 - Filament situation: only 2–3 spools at the printer; old buffer has **9 lanes** (gates 9–11 have no buffer lane). README has the "limited filament" plan (offcuts for per-gate calibration, one spool for bowden).
 - Open questions for the user: whether MMB RGB LED/anything else needs setup; confirm `variable_*` defaults in `variables.cfg` (park/purge positions) — it's still the stock Klippain template.
 
+## Session 2026-10-13 evening — MMU calibration state
+- **Done + committed:** gate 0 gear `rotation_distance` 22.523 (100.07 mm measured); encoder resolution 0.9434; servo 132/90/128 (user-tuned); **toolhead_extruder_to_nozzle 67** (synced gear+extruder feed, first plastic 67 ±1, `mmu.cfg`); Dragon HF preset otherwise (`entry_to_extruder` 12.4, `cooling_tube_position` 30).
+- **Bowden length 1009.2 is now STALE:** the user is replacing the bowden tube (the old one had a kink that stopped loads 10-20 mm short of the extruder). Redo `MMU_CALIBRATE_BOWDEN` after the swap, then re-measure.
+- **Filametrix cutter:** compressed X changed 6.5 → **0.5** (axis min is 0; the first cut at 6.5 was too shallow). Works, but ran intermittently once; check the unload log for the "Excess slippage" warning after every cut (it means the cut failed and the filament is still in the extruder).
+- **`toolhead_residual_filament` NOT yet measured** (still preset 30.6). One usable bracket: first plastic after a cut at 45-50 mm synced from the collision home point → residual ≈ 67-48 ≈ **19 ±2.5**. Further passes were invalidated by false collision homing (kinked bowden / servo not seating). Repeat with 1 mm steps once the new bowden is in. Method: `MMU_RECOVER LOADED=1` → `MMU_UNLOAD` (cuts) → `MMU_TEST_LOAD FULL=1` → `MMU_TEST_MOVE MOVE=N MOTOR=gear+extruder SPEED=3`, check the encoder ("measured") tracks every step.
+- Helper scripts in the scratchpad (`gc.py`, `errs.py`) are not in the repo; send one gcode line per call (multi-line args get mangled by the shell wrapper).
+
 ## Gotchas learned (save yourself time)
 - **Bash tool + heredocs:** `\n` inside Python/shell heredocs written through the Bash tool turns into real newlines (broke `tune_homing_speed.py` twice). Create/modify files with the Write/Edit tools, not shell heredocs, whenever strings contain `\n`.
 - Auto-mode permission denials occurred on some remote writes/restarts and a few "enable cutter" style actions; when the user says "go", it succeeded. Don't try to bypass a denial — explain and ask.
