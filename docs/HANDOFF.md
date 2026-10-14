@@ -53,6 +53,13 @@ Follow README Phase 0 → 5. Status (updated end of session 2026-10-12/13):
 - **`toolhead_residual_filament` = 32** (measured 2026-10-13 23:27: first plastic at 34 mm synced from the collision home point on a hand-pulled stub → 67-34 = 33, set 32 as a compromise with the preset 30.6). The earlier 19 ±2.5 bracket was invalid (false homing on a kinked bowden). Confirm with a clean cutter cycle. Method: `MMU_RECOVER LOADED=1` → `MMU_UNLOAD` (cuts) → `MMU_TEST_LOAD FULL=1` → `MMU_TEST_MOVE MOVE=N MOTOR=gear+extruder SPEED=3`, check the encoder ("measured") tracks every step.
 - Helper scripts in the scratchpad (`gc.py`, `errs.py`) are not in the repo; send one gcode line per call (multi-line args get mangled by the shell wrapper).
 
+## TODO: nozzle wipe / purge macros (requested 2026-10-13, not started)
+The machine has a **nozzle brush and a purge bucket**. Goal: Bambu-style automatic nozzle cleaning, so the nozzle wipes itself between actions that leave plastic on it: after MMU load, after unload/cut, at end of print, and before homing (so TAP/probing sees a clean nozzle), plus similar triggers (e.g. before bed mesh / QGL / tool change). **A wipe does not always need a hot nozzle** (e.g. the pre-home wipe can be cold; load/unload/end-of-print wipes are better hot). Design questions to settle with the user first:
+- Brush and bucket positions (X/Y/Z), brush wipe direction/stroke count/speed, whether the bucket needs a purge-length parameter, and how the brush interacts with the Filametrix cutter and TAP (clearances).
+- Where it hooks in: Klippain variables/macros (`variables.cfg` still has the stock `variable_*` park/purge positions — see "Open questions"), the Happy Hare purge/after-load/unload hooks (`mmu_macro_vars.cfg`, `_MMU_POST_LOAD`/`_MMU_POST_UNLOAD` style), `PRINT_END`, and `G28` (cold wipe before homing).
+- Hot vs cold behaviour per trigger (a `HOT=0/1` parameter on one `CLEAN_NOZZLE` macro is the likely shape).
+- Check the existing Klippain/Happy Hare macros for brush/bucket support first before writing new ones.
+
 ## Gotchas learned (save yourself time)
 - **Bash tool + heredocs:** `\n` inside Python/shell heredocs written through the Bash tool turns into real newlines (broke `tune_homing_speed.py` twice). Create/modify files with the Write/Edit tools, not shell heredocs, whenever strings contain `\n`.
 - Auto-mode permission denials occurred on some remote writes/restarts and a few "enable cutter" style actions; when the user says "go", it succeeded. Don't try to bypass a denial — explain and ask.
