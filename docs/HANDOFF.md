@@ -53,6 +53,14 @@ Follow README Phase 0 → 5. Status (updated end of session 2026-10-12/13):
 - **`toolhead_residual_filament` = 32** (measured 2026-10-13 23:27: first plastic at 34 mm synced from the collision home point on a hand-pulled stub → 67-34 = 33, set 32 as a compromise with the preset 30.6). The earlier 19 ±2.5 bracket was invalid (false homing on a kinked bowden). Confirm with a clean cutter cycle. Method: `MMU_RECOVER LOADED=1` → `MMU_UNLOAD` (cuts) → `MMU_TEST_LOAD FULL=1` → `MMU_TEST_MOVE MOVE=N MOTOR=gear+extruder SPEED=3`, check the encoder ("measured") tracks every step.
 - Helper scripts in the scratchpad (`gc.py`, `errs.py`) are not in the repo; send one gcode line per call (multi-line args get mangled by the shell wrapper).
 
+## Session 2026-10-14 - Shake&Tune (no filament, cold, done unattended)
+- Enabled `[shaketune]` in `overrides.cfg` (Shake&Tune v6 is a Klipper extras module; old `config/software/shaketune.cfg` shell-command is unused). Commands: `AXES_SHAPER_CALIBRATION`, `COMPARE_BELTS_RESPONSES`, `CREATE_VIBRATIONS_PROFILE`. Results on Pi in `~/printer_data/config/ShakeTune_results` (untracked); copies of the PNGs in `docs/shaketune-2026-10-14/`.
+- **Input shaper applied:** X `ei` 63.2 Hz (was 2hump_ei 87.8; X peaks 49.5/69/79.5/111 Hz, EI max accel ~7270), Y `mzv` 35.8 Hz (was 36.6; single peak 36 Hz, max accel ~3760). Cold bed, nozzle empty, ADXL on toolhead.
+- **Y is the limiter:** keep accel <= ~3500 for print moves on Y-heavy paths until Y is stiffened; X allows ~7000.
+- **Belts:** similarity 96.6%, peak deltas 0-0.4 Hz (tension matched). Tool flags "potential mechanical issue" (experimental): Belt B is stronger around 70-130 Hz; low priority, recheck tension/pulleys when convenient.
+- **Vibrations profile** (3000 mm/s2): avoid constant speeds near 24, 38, 51, 77-79, 101 mm/s (zones OK: 2-21, 28-35, 62-70, 83-98, >104). Best travel angles ~128-142/308-322 deg. Motor resonance 254.8 Hz, symmetry 79.6%.
+- Re-run after any toolhead/bowden/cutter hardware change and with a hot bed.
+
 ## TODO: nozzle wipe / purge macros (requested 2026-10-13, not started)
 The machine has a **nozzle brush and a purge bucket**. Goal: Bambu-style automatic nozzle cleaning, so the nozzle wipes itself between actions that leave plastic on it: after MMU load, after unload/cut, at end of print, and before homing (so TAP/probing sees a clean nozzle), plus similar triggers (e.g. before bed mesh / QGL / tool change). **A wipe does not always need a hot nozzle** (e.g. the pre-home wipe can be cold; load/unload/end-of-print wipes are better hot). Design questions to settle with the user first:
 - Brush and bucket positions (X/Y/Z), brush wipe direction/stroke count/speed, whether the bucket needs a purge-length parameter, and how the brush interacts with the Filametrix cutter and TAP (clearances).
