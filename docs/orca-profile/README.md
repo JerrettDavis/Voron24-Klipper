@@ -9,7 +9,7 @@ profiles by `tools/make_orca_profile.py`), `test_box_25mm.stl` (25 x 25 x 3.2 mm
 
 ## What the installed config requires (read from the live printer, not the stock profile)
 - **Machine start G-code** (Klippain `START_PRINT`; the chamber parameter is `CHAMBER`, not `CHAMBER_TEMP`):
-  `START_PRINT BED_TEMP=[bed_temperature_initial_layer_single] EXTRUDER_TEMP=[nozzle_temperature_initial_layer] CHAMBER=0 SOAK=0 MATERIAL={filament_type[initial_tool]} SIZE={first_layer_print_min[0]}_{first_layer_print_min[1]}_{first_layer_print_max[0]}_{first_layer_print_max[1]} INITIAL_TOOL={initial_tool} TOOLS_USED=!referenced_tools! TOTAL_LAYER=[total_layer_count]`
+  `START_PRINT BED_TEMP=[bed_temperature_initial_layer_single] EXTRUDER_TEMP=[nozzle_temperature_initial_layer] CHAMBER=[chamber_temperature] SOAK=0 MATERIAL={filament_type[initial_tool]} SIZE={first_layer_print_min[0]}_{first_layer_print_min[1]}_{first_layer_print_max[0]}_{first_layer_print_max[1]} INITIAL_TOOL={initial_tool} TOOLS_USED=!referenced_tools! TOTAL_LAYER=[total_layer_count]`
   Without `SOAK=` Klippain soaks the bed for 8 min (`print_default_soak`). `MATERIAL` must be one of PLA / PET / ABS / TPU
   (`variable_material_parameters`), which also sets pressure advance (PLA 0.0525, uncalibrated carry-over) and
   retraction at print start.
@@ -29,7 +29,11 @@ The old preset is still in `%APPDATA%\OrcaSlicer\user\<id>\machine`. Do not reus
 - `change_filament_gcode` used `T[next_extruder] STANDALONE=1 CHECK_ONLY=1` and `_SET_LOC_AFTER_TOOLCHANGE`. The installed
   Happy Hare v4 defines `T0..T11` as plain `MMU_CHANGE_TOOL TOOL=n` and `_SET_LOC_AFTER_TOOLCHANGE` no longer exists
   (it would raise "Unknown command"). Use `T[next_extruder]`.
-- Start G-code used `CHAMBER=[chamber_temperature]` and no `SOAK=`/`TOTAL_LAYER=`; the new one sets `CHAMBER=0 SOAK=0` and `TOTAL_LAYER`.
+- Start G-code had no `SOAK=`/`TOTAL_LAYER=`; the new one adds `SOAK=0` (else an 8 min bed soak) and `TOTAL_LAYER`, and keeps `CHAMBER=[chamber_temperature]`.
+- Chamber and filtration: the printer has a chamber sensor and the Nevermore (`fan_generic filter`). Keep "Support controlling chamber
+  temperature" and "Support air filtration" on. Klippain does the chamber soak from `START_PRINT CHAMBER=` and starts the Nevermore with
+  `START_FILTER` at the material's `filter_speed` (PLA 0, ABS 80 in `variables.cfg`; stays on 600 s after the print). `slicer_compat.cfg`
+  defines no-op `M141`/`M191` so slicer-emitted chamber commands cannot stop a print. Leave the filament's own air-filtration option off (it would emit `M106 P3`).
 - Machine accel limits were 15000-20000; the installed input shapers (X EI 63.2 Hz, Y MZV 35.8 Hz) limit Y to ~3500, X to ~7000.
 - Retraction was slicer-side (0.3 mm); the installed Klippain enables firmware retraction (G10/G11, length from the material table).
 - Process "MMU" variant enabled the prime tower; for the no-purge test it is off.

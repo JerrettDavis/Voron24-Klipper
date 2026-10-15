@@ -159,6 +159,13 @@ def main():
             retr_g10 += 1
             continue
 
+        if cmd == "M106" and re.search(r"\bP[1-9]", rest, re.I):
+            warn(n, "M106 with a fan index (%s): the Nevermore is driven by START_FILTER, not M106 P" % rest.strip())
+            continue
+        if cmd in ("M141", "M191"):
+            warn(n, "%s: chamber commands are shimmed to no-ops (slicer_compat.cfg); START_PRINT CHAMBER= does the soak" % cmd)
+            continue
+
         if cmd in ("M104", "M109", "M140", "M190"):
             m = re.search(r"\bS(-?[\d.]+)", rest, re.I)
             if m:
