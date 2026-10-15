@@ -57,6 +57,7 @@ machine.update({
     "z_hop": ["0.2"],
     "wipe": ["0"],
     "retract_when_changing_filament": ["0"],
+    "enable_filament_ramming": "0",
     "cooling_tube_length": "0",
     "cooling_tube_retraction": "0",
     "parking_pos_retraction": "0",
