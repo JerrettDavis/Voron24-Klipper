@@ -87,7 +87,7 @@
   "nil"
  ],
  "filament_settings_id": [
-  ""
+  "Generic PLA test"
  ],
  "filament_soluble": [
   "0"
@@ -182,7 +182,9 @@
  "filament_end_gcode": [
   "; filament end gcode\n"
  ],
- "compatible_printers": [],
+ "compatible_printers": [
+  "Voron 2.4 350 0.4 nozzle"
+ ],
  "filament_id": "OGFL99",
  "additional_cooling_fan_speed": [
   "70"
@@ -197,5 +199,6 @@
  "enable_pressure_advance": [
   "0"
  ],
+ "compatible_printers_condition": "",
  "is_custom_defined": "1"
 }

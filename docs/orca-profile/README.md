@@ -23,3 +23,17 @@ profiles by `tools/make_orca_profile.py`), `test_box_25mm.stl` (25 x 25 x 3.2 mm
 - Limits: Z max 310 (profile uses 300), accel Y <= 3500 (input shaper MZV 35.8 Hz), X up to ~7000, travel 400 mm/s.
 - Layer change G-code sets `SET_PRINT_STATS_INFO CURRENT_LAYER`.
 - Do not add `SET_PRESSURE_ADVANCE` in the slicer; the material table owns it until it is calibrated.
+
+## Differences from the old 2023 preset ("Voron 2.4r2 350 0.4 nozzle", ERCF v1.3b / Happy Hare v3)
+The old preset is still in `%APPDATA%\OrcaSlicer\user\<id>\machine`. Do not reuse its G-code as is:
+- `change_filament_gcode` used `T[next_extruder] STANDALONE=1 CHECK_ONLY=1` and `_SET_LOC_AFTER_TOOLCHANGE`. The installed
+  Happy Hare v4 defines `T0..T11` as plain `MMU_CHANGE_TOOL TOOL=n` and `_SET_LOC_AFTER_TOOLCHANGE` no longer exists
+  (it would raise "Unknown command"). Use `T[next_extruder]`.
+- Start G-code used `CHAMBER=[chamber_temperature]` and no `SOAK=`/`TOTAL_LAYER=`; the new one sets `CHAMBER=0 SOAK=0` and `TOTAL_LAYER`.
+- Machine accel limits were 15000-20000; the installed input shapers (X EI 63.2 Hz, Y MZV 35.8 Hz) limit Y to ~3500, X to ~7000.
+- Retraction was slicer-side (0.3 mm); the installed Klippain enables firmware retraction (G10/G11, length from the material table).
+- Process "MMU" variant enabled the prime tower; for the no-purge test it is off.
+
+## Next
+Import the three JSONs (or edit the old preset), slice `test_box_25mm.stl`, run `tools/gcode_lint.py` on the result, then upload.
+For the 2-colour test: add a filament change (T1) at the layer you want in the slicer (or paint the top layers).

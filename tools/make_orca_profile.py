@@ -42,8 +42,10 @@ START = ("START_PRINT BED_TEMP=[bed_temperature_initial_layer_single] "
 
 LAYER_CHANGE = ";LAYER_CHANGE\n;Z:{layer_z}\n;HEIGHT:{layer_height}\nSET_PRINT_STATS_INFO CURRENT_LAYER={layer_num + 1}"
 
+MACHINE_NAME = "Voron 2.4 350 0.4 nozzle"      # keep the stock name so stock compatibility lists match
+
 machine.update({
-    "name": "Voron24 ERCF",
+    "name": MACHINE_NAME,
     "machine_start_gcode": START,
     "machine_end_gcode": "END_PRINT",
     "change_filament_gcode": "T[next_extruder]",
@@ -109,6 +111,11 @@ filament.update({
 for d, t in ((machine, "machine"), (process, "process"), (filament, "filament")):
     d["type"] = t
     d["from"] = "User"
+    d["compatible_printers"] = [] if t == "machine" else [MACHINE_NAME]   # process/filament must name our printer
+    d["compatible_printers_condition"] = ""
+    d[{"machine": "printer_settings_id", "process": "print_settings_id", "filament": "filament_settings_id"}[t]] = \
+        d["name"] if t != "filament" else [d["name"]]
+    d.pop("compatible_prints", None)
     d["is_custom_defined"] = "1"
     for k in ("setting_id", "instantiation"):
         d.pop(k, None)

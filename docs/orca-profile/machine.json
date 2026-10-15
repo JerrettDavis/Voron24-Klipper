@@ -1,6 +1,6 @@
 {
  "type": "machine",
- "name": "Voron24 ERCF",
+ "name": "Voron 2.4 350 0.4 nozzle",
  "from": "User",
  "printer_technology": "FFF",
  "deretraction_speed": [
@@ -91,7 +91,7 @@
  "nozzle_diameter": [
   "0.4"
  ],
- "printer_settings_id": "",
+ "printer_settings_id": "Voron 2.4 350 0.4 nozzle",
  "printer_variant": "0.4",
  "retraction_minimum_travel": [
   "1"
@@ -162,5 +162,7 @@
  "extra_loading_move": "0",
  "high_current_on_filament_swap": "0",
  "time_lapse_gcode": "",
+ "compatible_printers": [],
+ "compatible_printers_condition": "",
  "is_custom_defined": "1"
 }

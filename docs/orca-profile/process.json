@@ -9,14 +9,7 @@
  "internal_bridge_speed": "70",
  "brim_width": "5",
  "compatible_printers": [
-  "Voron 2.4 250 0.4 nozzle",
-  "Voron 2.4 300 0.4 nozzle",
-  "Voron 2.4 350 0.4 nozzle",
-  "Voron Trident 250 0.4 nozzle",
-  "Voron Trident 300 0.4 nozzle",
-  "Voron Trident 350 0.4 nozzle",
-  "Voron 0.1 0.4 nozzle",
-  "Voron Switchwire 250 0.4 nozzle"
+  "Voron 2.4 350 0.4 nozzle"
  ],
  "print_sequence": "by layer",
  "default_acceleration": [
@@ -45,7 +38,7 @@
  "wall_loops": "3",
  "inner_wall_line_width": "0.4",
  "inner_wall_speed": "200",
- "print_settings_id": "",
+ "print_settings_id": "Voron24 0.20 standard",
  "raft_layers": "0",
  "seam_position": "aligned",
  "skirt_distance": "2",
