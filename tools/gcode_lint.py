@@ -87,7 +87,8 @@ def main():
         rest = parts[1] if len(parts) > 1 else ""
         if first_cmd is None and cmd not in ("G90", "M83", "M82"):
             first_cmd = cmd
-        last_cmd = cmd
+        if cmd not in ("M73", "M117", "M118", "M400"):      # progress/status markers may trail END_PRINT
+            last_cmd = cmd
 
         if cmd in FORBIDDEN:
             err(n, "forbidden command %s (Klippain/HH do this in START_PRINT)" % cmd)
