@@ -118,6 +118,20 @@ else
   wrn "could not confirm which [save_variables] file is live"
 fi
 
+hdr "Upstream overrides (survive Klippain / Happy Hare updates?)"
+if [ -f "$CFG/tools/mmu_v4_fix.py" ]; then
+  while IFS= read -r line; do
+    case "$line" in
+      "[OK]"*)   ok   "${line#\[OK\]   }" ;;
+      "[WARN]"*) wrn  "${line#\[WARN\] }" ;;
+      "[FAIL]"*) bad  "${line#\[FAIL\] }" ;;
+      *)         printf '         %s\n' "$line" ;;
+    esac
+  done < <(CFG="$CFG" python3 "$CFG/tools/mmu_v4_fix.py" check 2>&1)
+else
+  wrn "tools/mmu_v4_fix.py missing"
+fi
+
 hdr "Webcam"
 cams=$(mr_get /server/webcams/list) || cams=""
 n=$(python3 - "$cams" <<'PY' 2>/dev/null
