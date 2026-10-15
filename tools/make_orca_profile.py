@@ -65,7 +65,7 @@ machine.update({
     "high_current_on_filament_swap": "0",
     "machine_pause_gcode": "PAUSE",
     "layer_change_gcode": LAYER_CHANGE,
-    "before_layer_change_gcode": "",
+    "before_layer_change_gcode": ";BEFORE_LAYER_CHANGE\n;[layer_z]\nG92 E0",
     "time_lapse_gcode": "",
     "single_extruder_multi_material": "1",
     "machine_max_acceleration_x": ["7000", "7000"],
