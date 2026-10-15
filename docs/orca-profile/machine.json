@@ -156,6 +156,7 @@
  "retract_when_changing_filament": [
   "0"
  ],
+ "time_cost": "0.9",
  "enable_filament_ramming": "0",
  "cooling_tube_length": "0",
  "cooling_tube_retraction": "0",

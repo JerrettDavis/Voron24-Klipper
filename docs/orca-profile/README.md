@@ -37,3 +37,17 @@ The old preset is still in `%APPDATA%\OrcaSlicer\user\<id>\machine`. Do not reus
 ## Next
 Import the three JSONs (or edit the old preset), slice `test_box_25mm.stl`, run `tools/gcode_lint.py` on the result, then upload.
 For the 2-colour test: add a filament change (T1) at the layer you want in the slicer (or paint the top layers).
+
+## Machine time cost (Basic information > Time cost = 0.90 $/h)
+From `3dprint4me/lib/print-estimation/pricing-policy.js` `machineEconomics()` with the machine basis changed from the default $1000 to $2400
+(everything else unchanged: 3 yr life, 10%/yr maintenance, 32 h/week x 52 weeks x 80% utilisation = 1331 productive h/yr, 0.20 kW at $0.15/kWh, 10% failure reserve):
+
+| | $/h |
+|---|---:|
+| Depreciation ($2400 / 3 yr / 1331 h) | 0.601 |
+| Maintenance (10% of basis per year) | 0.180 |
+| Electricity (0.20 kW) | 0.030 |
+| Base | 0.811 |
+| **Per successful hour (/ 0.9)** | **0.901** |
+
+Sensitivity: 0.30 kW average power gives 0.918; a 5 year life gives 0.634. The repo default machine ($1000) is 0.395. Filament cost stays at the repo's PLA fallback of $20/kg.

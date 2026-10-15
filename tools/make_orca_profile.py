@@ -57,6 +57,8 @@ machine.update({
     "z_hop": ["0.2"],
     "wipe": ["0"],
     "retract_when_changing_filament": ["0"],
+    # machine time cost, $ per successful hour: 3dprint4me machineEconomics() with a $2400 basis (docs/orca-profile/README.md)
+    "time_cost": "0.9",
     "enable_filament_ramming": "0",
     "cooling_tube_length": "0",
     "cooling_tube_retraction": "0",
