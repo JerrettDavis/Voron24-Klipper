@@ -9,7 +9,7 @@ profiles by `tools/make_orca_profile.py`), `test_box_25mm.stl` (25 x 25 x 3.2 mm
 
 ## What the installed config requires (read from the live printer, not the stock profile)
 - **Machine start G-code** (Klippain `START_PRINT`; the chamber parameter is `CHAMBER`, not `CHAMBER_TEMP`):
-  `START_PRINT BED_TEMP=[bed_temperature_initial_layer_single] EXTRUDER_TEMP=[nozzle_temperature_initial_layer] CHAMBER=[chamber_temperature] SOAK=0 MATERIAL={filament_type[initial_tool]} SIZE={first_layer_print_min[0]}_{first_layer_print_min[1]}_{first_layer_print_max[0]}_{first_layer_print_max[1]} INITIAL_TOOL={initial_tool} TOOLS_USED=!referenced_tools! TOTAL_LAYER=[total_layer_count]`
+  `START_PRINT BED_TEMP=[bed_temperature_initial_layer_single] EXTRUDER_TEMP=[nozzle_temperature_initial_layer] CHAMBER=[chamber_temperature] SOAK=0 SYNC_MMU_EXTRUDER=1 MATERIAL={filament_type[initial_tool]} SIZE={first_layer_print_min[0]}_{first_layer_print_min[1]}_{first_layer_print_max[0]}_{first_layer_print_max[1]} INITIAL_TOOL={initial_tool} TOOLS_USED=!referenced_tools! TOTAL_LAYER=[total_layer_count]`
   Without `SOAK=` Klippain soaks the bed for 8 min (`print_default_soak`). `MATERIAL` must be one of PLA / PET / ABS / TPU
   (`variable_material_parameters`), which also sets pressure advance (PLA 0.0525, uncalibrated carry-over) and
   retraction at print start.

@@ -121,6 +121,8 @@ def main():
                         err(n, "%s=%s outside 1..%g" % (k, p.get(k), lim))
                 except ValueError:
                     err(n, "%s not numeric: %s" % (k, p.get(k)))
+            if p.get("SYNC_MMU_EXTRUDER") != "1":
+                warn(n, "no SYNC_MMU_EXTRUDER=1: after a bypass print the gear would stay unsynced until the next Klipper restart")
             if "SOAK" not in p:
                 warn(n, "no SOAK= parameter: Klippain default is 8 min bed soak")
             if "CHAMBER" not in p and "CHAMBER_TEMP" in p:

@@ -35,7 +35,7 @@ process = resolve("0.20mm Standard @Voron")
 filament = resolve("Generic PLA @System")
 
 START = ("START_PRINT BED_TEMP=[bed_temperature_initial_layer_single] "
-         "EXTRUDER_TEMP=[nozzle_temperature_initial_layer] CHAMBER=[chamber_temperature] SOAK=0 "
+         "EXTRUDER_TEMP=[nozzle_temperature_initial_layer] CHAMBER=[chamber_temperature] SOAK=0 SYNC_MMU_EXTRUDER=1 "
          "MATERIAL={filament_type[initial_tool]} "
          "SIZE={first_layer_print_min[0]}_{first_layer_print_min[1]}_{first_layer_print_max[0]}_{first_layer_print_max[1]} "
          "INITIAL_TOOL={initial_tool} TOOLS_USED=!referenced_tools! TOTAL_LAYER=[total_layer_count]")
