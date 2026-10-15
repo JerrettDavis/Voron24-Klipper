@@ -16,6 +16,8 @@ import sys
 BED_X = (0.0, 350.0)
 BED_Y = (0.0, 350.0)
 MAX_FEED = 400 * 60            # mm/min, machine travel cap
+MAX_ACCEL = 8000               # tested travel limit (tools/tune_travel_accel.py)
+WARN_ACCEL = 7000              # X input shaper limit; Y is lower (~3500) but print accel is per-move
 MAX_NOZZLE = 260
 MAX_BED = 110
 FIL_AREA = math.pi * (1.75 / 2) ** 2
@@ -209,6 +211,32 @@ def main():
             if "X" in vals or "Y" in vals or "Z" in vals:
                 x, y, z = nx, ny, nz
                 pos_known = True
+            continue
+
+        if cmd in ("SET_VELOCITY_LIMIT", "M204"):
+            # Orca emits these when "Emit limits to G-code" is on: values come from the printer's Motion ability tab
+            p = parse_params(rest)
+            accels = []
+            if cmd == "SET_VELOCITY_LIMIT":
+                if "ACCEL" in p:
+                    accels.append(p["ACCEL"])
+                if "VELOCITY" in p:
+                    try:
+                        if float(p["VELOCITY"]) > 400:
+                            err(n, "SET_VELOCITY_LIMIT VELOCITY=%s exceeds 400 mm/s" % p["VELOCITY"])
+                    except ValueError:
+                        pass
+            else:
+                accels += re.findall(r"\b[SPT](\d+(?:\.\d+)?)", rest, re.I)
+            for v in accels:
+                try:
+                    v = float(v)
+                except ValueError:
+                    continue
+                if v > MAX_ACCEL:
+                    err(n, "%s sets accel %g mm/s2 (> %g: Motion ability limits are too high?)" % (cmd, v, MAX_ACCEL))
+                elif v > WARN_ACCEL:
+                    warn(n, "%s sets accel %g mm/s2 (> %g: above the Y input shaper limit)" % (cmd, v, WARN_ACCEL))
             continue
 
         if cmd == "SET_PRESSURE_ADVANCE":
