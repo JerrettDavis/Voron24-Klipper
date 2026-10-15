@@ -20,9 +20,10 @@ img{max-width:100%;border-radius:8px;border:1px solid var(--line)}
 
 <div class="card"><b>Read this first.</b> The printer (10.0.0.151) was <b>unreachable</b> (SSH and ping time out) for the whole of this session. So:
 <ul>
+<li><b>Update 13:15:</b> the Pi came back; menus are deployed and Klipper reloaded cleanly; motion calibrations ran (section 3b). Menu entries were not tapped on the physical screen.</li>
 <li>Everything under <b>Measured</b> comes from earlier sessions (repo history, <code>docs/HANDOFF.md</code>, Shake&amp;Tune plots).</li>
-<li>The new screen menus and calibration macros are written and syntax-checked but <b>not loaded or run on the machine</b>. Command names that I could not check against the live Happy Hare install are marked below.</li>
-<li>No new calibrations were run, so nothing in the "To do" lists has a result yet. Run the on-screen <b>Calibrate</b> menu once the Pi is back to fill them in.</li>
+<li>The screen menus and macros loaded on the machine and the commands they call exist; I ran the Calibrate macros over Moonraker, not through the screen.</li>
+<li>Only the motion-only calibrations were run (no filament, cold). Pressure advance, flow, hot mesh and ERCF gates 1-11 still need you and material.</li>
 </ul></div>
 
 <h2>1. Screen controls added (not yet deployed)</h2>
@@ -67,6 +68,35 @@ img{max-width:100%;border-radius:8px;border:1px solid var(--line)}
 <li><b>Speeds to avoid</b> (3000 mm/s&sup2; profile): 24, 38, 51, 77-79, 101 mm/s. Good zones: 2-21, 28-35, 62-70, 83-98, above 104. Motor resonance 254.8 Hz, symmetry 79.6 %.</li>
 </ul></div>
 
+<h2>3b. New on-printer run (2026-10-15, cold, empty toolhead)</h2>
+<div class="card">
+<p>Run through the new menu macros after deploying them (menus load without errors; all commands they call exist, one fixed: belts now use <code>COMPARE_BELTS_RESPONSES</code>).</p>
+<table>
+<tr><th>Test</th><th>Result</th><th>Verdict</th></tr>
+<tr><td>Home + QGL</td><td>range 0.00625 mm, 2 retries</td><td><span class="tag done">excellent</span></td></tr>
+<tr><td>ADXL noise (x/y/z)</td><td>62 / 82 / 134</td><td><span class="tag todo">OK; Z high-ish, check ADXL mount and cable</span></td></tr>
+<tr><td>Y shaper</td><td>one peak 36.0 Hz, MZV 35.8 Hz (identical to last run)</td><td><span class="tag risk">reproducible, but low</span></td></tr>
+<tr><td>X shaper</td><td>peaks 51.1, 69.1, 76.6, 109.6, 132.2 Hz; best MZV 50.0 Hz (applied now: EI 63.2 Hz)</td><td><span class="tag risk">changed, not applied</span></td></tr>
+<tr><td>Belts</td><td>similarity 98.1 % (was 96.6 %), "acceptable mechanical health"</td><td><span class="tag done">good</span></td></tr>
+<tr><td>Vibrations profile</td><td>motor resonance 255.3 Hz (was 254.8), damping 0.057</td><td><span class="tag done">stable</span></td></tr>
+</table>
+<p><b>Decision for you:</b> X recommendation moved from EI 63.2 to MZV 50.0 Hz, with the lower-frequency peak shifting from 49.5 to 51.1 Hz. That is a ~1.6 Hz move, so the mechanics are not fully repeatable at X, which fits the loose-part suspicion in section 5. I did <b>not</b> apply it. Re-test after tightening the TAP and toolhead, then re-run <b>Input shaper X+Y</b>.</p>
+</div>
+<h2>3c. Comparison with published 2.4 350 / TAP machines</h2>
+<div class="card">
+<table>
+<tr><th>Source</th><th>X</th><th>Y</th></tr>
+<tr><td>voron24 (this machine)</td><td>MZV 50.0 / EI 63.2 Hz, 5 peaks</td><td>MZV 35.8 Hz</td></tr>
+<tr><td><a href="https://forum.vorondesign.com/threads/voron-2-4r2-350-with-mellow-tap-low-max-accel.1293">2.4 R2 350, Mellow TAP (forum)</a></td><td>ZV 54.0 Hz</td><td>EI 38.6 Hz; ringing at 5000 accel</td></tr>
+<tr><td><a href="https://klipper.discourse.group/t/raw-resonance-data-needed/7609">Klipper Discourse, 2.4 samples</a></td><td>3hump_ei 91.4 / MZV 71.2 Hz</td><td>EI 39 / 38.4 Hz</td></tr>
+</table>
+<ul>
+<li><b>Y</b> at 35.8 Hz is 2.5-3 Hz below the published 38-39 Hz. Small but consistent with "Y is the limiter"; published machines still saw ringing at 5000, so keeping Y accel about 3500 is reasonable.</li>
+<li><b>X</b> at 50-63 Hz sits at the low end of the published range (54-91 Hz), and our 5 peaks look messier than the single clean X peak typical of a rigid gantry.</li>
+<li><b>TAP:</b> published threads and a <a href="https://teamfdm.com/forums/topic/2195-voron-tap-comparisons">TAP comparison thread</a> show probe design changes the measured resonance, and TAP is known to rattle. The search found no confirmed fix for a loose-TAP rattle. Practical check: re-run the looseness test with the TAP bolts tightened, the probe pin/retainer seated, and the probe cable strain-relieved; a peak that moves or disappears is the TAP.</li>
+</ul>
+<p class="sub">These are anecdotes from forum posts with different belts, gantry mass and filtering; use them for rough scale, not as targets.</p>
+</div>
 <h2>4. To tune: priority list</h2>
 <table>
 <tr><th>#</th><th>Task</th><th>Why</th><th>How (on-screen)</th><th>Gain</th></tr>
