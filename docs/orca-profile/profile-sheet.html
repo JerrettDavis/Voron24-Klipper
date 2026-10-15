@@ -1,0 +1,301 @@
+<title>Orca Profile Sheet</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one panel per OrcaSlicer tab, fields stacked in the same order as the GUI, each with its paste-ready value. */
+:root {
+  --bg: #f3f4f5; --panel: #ffffff; --well: #eceef0; --line: #d3d7db;
+  --fg: #1d2226; --muted: #5d676f; --accent: #0f7f75; --accent-soft: #d7efec;
+  --req: #8a4b00; --req-bg: #fbe9d0; --chg: #14597a; --chg-bg: #d9ecf7; --ok: #46525a; --ok-bg: #e4e8ea;
+  --code-bg: #e6e9ec; --code-fg: #17202a;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #17191b; --panel: #202326; --well: #1a1c1e; --line: #343a3f;
+  --fg: #e3e6e8; --muted: #98a2a9; --accent: #3fc1b3; --accent-soft: #1d3a37;
+  --req: #f0b968; --req-bg: #3d2f18; --chg: #84c6ea; --chg-bg: #1c3342; --ok: #a9b3ba; --ok-bg: #2a2e32;
+  --code-bg: #141618; --code-fg: #e8ecef; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #17191b; --panel: #202326; --well: #1a1c1e; --line: #343a3f;
+  --fg: #e3e6e8; --muted: #98a2a9; --accent: #3fc1b3; --accent-soft: #1d3a37;
+  --req: #f0b968; --req-bg: #3d2f18; --chg: #84c6ea; --chg-bg: #1c3342; --ok: #a9b3ba; --ok-bg: #2a2e32;
+  --code-bg: #141618; --code-fg: #e8ecef; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 980px; margin: 0 auto; }
+header h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 70ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 14px 0 0; font-size: 12px; color: var(--muted); }
+.tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 1px 7px; border-radius: 3px; }
+.tag.req { color: var(--req); background: var(--req-bg); } .tag.chg { color: var(--chg); background: var(--chg-bg); } .tag.ok { color: var(--ok); background: var(--ok-bg); }
+.top { display: flex; flex-wrap: wrap; gap: 6px; margin: 22px 0 0; border-bottom: 1px solid var(--line); }
+.top button, .sub button { font: inherit; background: none; border: 0; color: var(--muted); cursor: pointer; padding: 8px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.top button { font-weight: 600; font-size: 15px; }
+.top button[aria-selected="true"], .sub button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.preset { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 0; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+.preset strong { font-weight: 500; } .preset span { color: var(--muted); font-size: 12px; }
+.sub { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin: 14px 0 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-top: 0; padding: 4px 16px 18px; border-radius: 0 0 4px 4px; }
+.sec { margin: 20px 0 0; }
+.sec > h2 { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; margin: 0 0 10px; }
+.sec > h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.field { display: grid; grid-template-columns: minmax(150px, 230px) minmax(0, 1fr); gap: 4px 16px; padding: 7px 0; align-items: start; }
+.field + .field { border-top: 1px dashed var(--line); }
+.label { color: var(--fg); } .label .tag { margin-left: 6px; vertical-align: 1px; }
+.note { grid-column: 2; color: var(--muted); font-size: 12.5px; }
+.val { min-width: 0; display: flex; gap: 8px; align-items: flex-start; }
+pre, .v { margin: 0; font-family: var(--mono); font-size: 12.5px; background: var(--code-bg); color: var(--code-fg); border: 1px solid var(--line); border-radius: 3px; padding: 6px 9px; min-width: 0; flex: 1; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; } .v { overflow-wrap: anywhere; }
+.empty { color: var(--muted); font-style: italic; font-family: var(--sans); }
+.copy { flex: none; font: inherit; font-size: 12px; background: var(--well); color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 5px 10px; cursor: pointer; }
+.copy:hover { border-color: var(--accent); }
+.diffs { margin: 18px 0 0; padding: 12px 16px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--req); border-radius: 3px; }
+.diffs h2 { font-size: 13px; margin: 0 0 6px; } .diffs ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; } .diffs li + li { margin-top: 3px; }
+.diffs code { font-family: var(--mono); font-size: 12px; color: var(--fg); }
+@media (max-width: 640px) { .field { grid-template-columns: 1fr; } .note { grid-column: 1; } .top button { padding: 8px 10px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Orca profile sheet</h1>
+  <p>Every value the Voron 2.4 + ERCF v2 profile sets, grouped like OrcaSlicer's own tabs. Read from <code>docs/orca-profile/*.json</code> in the repo. Not yet validated by an actual slice, so check each tab in the GUI as you paste.</p>
+  <div class="legend"><span><span class="tag req">required</span> the installed Klippain / Happy Hare needs it</span><span><span class="tag chg">changed</span> differs from your old v1.3b preset</span><span><span class="tag ok">same</span> stock Voron value</span></div>
+</header>
+
+<div class="diffs">
+  <h2>What changed from the old v1.3b / Happy Hare v3 preset</h2>
+  <ul>
+    <li>Tool change is now just <code>T[next_extruder]</code>. <code>_SET_LOC_AFTER_TOOLCHANGE</code> no longer exists and <code>T0..T11</code> take no parameters.</li>
+    <li>Start G-code adds <code>SOAK=0</code> (else an 8 min bed soak), <code>TOTAL_LAYER</code>, and a fixed <code>CHAMBER=0</code>.</li>
+    <li>Firmware retraction is on (Klippain sets the length per material). Slicer retraction values below only apply if you turn it off.</li>
+    <li>Accel limits dropped from 15000+ to X 7000 / Y 3500 to match the input shapers.</li>
+    <li>Prime tower off for the no-purge test; ramming, cooling moves and slicer-side filament-change retraction off (Happy Hare does the tip form).</li>
+  </ul>
+</div>
+
+<nav class="top" role="tablist" aria-label="Preset type" id="top"></nav>
+<div class="preset" id="preset"></div>
+<nav class="sub" role="tablist" aria-label="Section" id="sub"></nav>
+<div class="panel" id="panel" role="tabpanel"></div>
+</div>
+
+<script>
+var REQ = "req", CHG = "chg", SAME = "ok";
+var START = "START_PRINT BED_TEMP=[bed_temperature_initial_layer_single] EXTRUDER_TEMP=[nozzle_temperature_initial_layer] CHAMBER=[chamber_temperature] SOAK=0 SYNC_MMU_EXTRUDER=1 MATERIAL={filament_type[initial_tool]} SIZE={first_layer_print_min[0]}_{first_layer_print_min[1]}_{first_layer_print_max[0]}_{first_layer_print_max[1]} INITIAL_TOOL={initial_tool} TOOLS_USED=!referenced_tools! TOTAL_LAYER=[total_layer_count]";
+var LAYER = ";LAYER_CHANGE\n;Z:{layer_z}\n;HEIGHT:{layer_height}\nSET_PRINT_STATS_INFO CURRENT_LAYER={layer_num + 1}";
+
+/* f(label, value, tag, note, multiline) ; value null = empty box */
+function f(l, v, t, n, m) { return { l: l, v: v, t: t, n: n, m: m }; }
+var DATA = {
+  Checklist: { preset: ["Your saved preset: Voron 2.4r2 350 0.4 nozzle", "compared against the settings embedded in your sliced test box (2026-10-14 21:52)"], tabs: {
+    "To change": [
+      ["Required (1)", [
+        f("Printer settings > Machine G-code > Machine start G-code", START, REQ, "Replace the whole box. The only difference from what you have saved is SYNC_MMU_EXTRUDER=1, which keeps the ERCF gear synced to the extruder on every T-print.", true)]],
+      ["Recommended (2)", [
+        f("Printer settings > Motion ability > Maximum acceleration X", "7000", CHG, "Saved 7800. The X input shaper (EI 63.2 Hz) allows about 7270, so 7000 stays inside it. Leave Y at 3500."),
+        f("Printer settings > Extruder > Retraction speed", "40", CHG, "Saved 30. Ignored while firmware retraction is on, so this only matters if you ever turn it off.")]],
+      ["Leave alone (greyed or unused)", [
+        f("Maximum acceleration for travel", "leave as is", SAME, "Greyed out and shows 20000, but Orca does not emit it: the sliced file's highest SET_VELOCITY_LIMIT is 3500. tools/gcode_lint.py errors on anything above 8000 anyway."),
+        f("Second column of the speed and accel boxes", "leave as is", SAME, "Orca's silent-mode limits; not used.")]]
+    ],
+    "Already correct": [
+      ["Verified in the saved preset", [
+        f("Basic information", "Printable height 300, flavor klipper, firmware retraction on, relative E on, chamber control on, air filtration on, time cost 0.901", SAME),
+        f("Machine G-code", "End END_PRINT, before-layer-change with G92 E0, layer change with SET_PRINT_STATS_INFO, change filament T[next_extruder], pause PAUSE, everything else empty", SAME),
+        f("Multimaterial", "SEMM on, ramming off, purge in prime tower off, tool change on wipe tower off, cooling tube 0/0, parking 0, extra loading 0, high current off", SAME),
+        f("Extruder", "Retraction 0.75, deretraction 30, z-hop 0.2 Normal, wipe off, on layer change on, travel threshold 1, switching length 2", SAME),
+        f("Motion ability", "Speeds X/Y 400, Z 20, E 60; accel Y 3500, Z 500, E 5000, extruding 3500, retracting 5000; jerk 12/12/0.2/2.5; resonance avoidance off", SAME)]]
+    ],
+    "Other presets": [
+      ["Process (your 0.20mm Standard @Voron)", [
+        f("Speeds as sliced", "outer 120, inner 200, infill 200, first layer 50, travel 350", SAME, "Stock values. Fine to leave; the printer caps accel at 3500 either way. For a more careful run use outer 60 / inner 100 / infill 100 / first layer 30."),
+        f("Brim", "auto_brim", CHG, "The sliced file shows brim auto, my profile uses none. START_PRINT already draws an adaptive prime line."),
+        f("Prime tower", "off", REQ, "Already off in the sliced file. Keep it off while Happy Hare purges.")]],
+      ["Filament (your Generic PLA @System)", [
+        f("Temps", "nozzle 220, bed 55, flow ratio 0.98, chamber 0", SAME, "As sliced. The generated preset in this sheet uses 205/60; either works for PLA."),
+        f("Air filtration", "off", REQ, "Already off (activate_air_filtration 0,0): the Nevermore is driven by START_FILTER, not M106 P3."),
+        f("Pressure advance", "off", REQ, "Already off. The material table sets PLA 0.0525 at print start; calibrate before trusting it.")]]
+    ]
+  }},
+  Printer: { preset: ["Voron 2.4 350 0.4 nozzle", "printer preset · name kept equal to the stock one so the stock process list matches"], tabs: {
+    "Basic information": [
+      ["Printable space", [
+        f("Printable area", "0x0, 350x0, 350x350, 0x350", SAME),
+        f("Printable height", "300", CHG, "Your preset shows 325, above the 310 mm axis limit. Set 300."),
+        f("Nozzle diameter", "0.4", SAME),
+        f("Printer variant", "0.4", SAME)]],
+      ["Advanced", [
+        f("G-code flavor", "klipper", SAME),
+        f("Use firmware retraction", "on", REQ, "Klippain firmware_retraction_enabled is True. START_PRINT sets retract length from the material table (PLA 0.75 mm)."),
+        f("Use relative E distances", "on", REQ, "Already on in your preset. START_PRINT does M83."),
+        f("Time cost (money/h)", "0.90", CHG, "Machine time cost from the 3dprint4me model with a $2400 printer: $0.601 depreciation (3 yr) + $0.180 maintenance (10%/yr) + $0.030 power, over 1331 productive h/yr, divided by 0.9 for the 10% failure reserve = $0.901/h. Default $1000 machine there is $0.395/h."),
+        f("G-code thumbnails", "48x48/PNG, 300x300/PNG", SAME, "Already set; Mainsail shows them."),
+        f("Support controlling chamber temperature", "on", REQ, "Keep on: the chamber setpoint becomes START_PRINT CHAMBER=, which runs Klippain's chamber soak (sensor 'Chamber', 15 min timeout). Orca may also emit M141/M191, which slicer_compat.cfg turns into harmless no-ops."),
+        f("Support air filtration", "on", REQ, "Keep on. The Nevermore (fan_generic filter) is started by START_PRINT via START_FILTER at the material's filter_speed (PLA is 0 in variables.cfg, ABS 80) and left running 600 s after the print. Leave the filament's own air-filtration option off so Orca does not add M106 P3."),
+        f("Extruder clearance radius / height to rod / height to lid", "65 / 36 / 140", SAME)]]
+    ],
+    "Machine G-code": [
+      ["File header G-code", [f("", null, SAME)]],
+      ["Machine start G-code", [f("", START, REQ, "Klippain START_PRINT parameters. CHAMBER takes the filament's chamber temperature (0 = no chamber soak; the old preset did this too; CHAMBER_TEMP would be ignored). SOAK=0 skips the 8 min bed soak default. SYNC_MMU_EXTRUDER=1 keeps the ERCF gear synced to the extruder on every T-print (sync_to_extruder is also on in the printer config); Klippain turns sync off by itself for a bypass print and this parameter turns it back on for the next T-print. !referenced_tools! is filled in by the Happy Hare preprocessor on upload.", true)]],
+      ["Machine end G-code", [f("", "END_PRINT", SAME, "Retracts, hot-wipes the nozzle, turns heaters/fans/motors off, unloads the MMU.")]],
+      ["Printing by object G-code", [f("", null, SAME)]],
+      ["Before layer change G-code", [f("", ";BEFORE_LAYER_CHANGE\n;[layer_z]\nG92 E0", SAME, "Runs BEFORE the move to the new layer. Same as your old preset; G92 E0 keeps the extruder position tidy and is harmless with relative extrusion.", true)]],
+      ["Layer change G-code", [f("", LAYER, CHG, "Runs AFTER the move to the new layer, so layer_num is the layer just started (0-based) and +1 is the right counter. Feeds Mainsail via SET_PRINT_STATS_INFO.", true)]],
+      ["Timelapse G-code", [f("", null, SAME)]],
+      ["Change filament G-code", [f("", "T[next_extruder]", REQ, "Happy Hare v4: T0..T11 are MMU_CHANGE_TOOL TOOL=n. Do not add STANDALONE / CHECK_ONLY / _SET_LOC_AFTER_TOOLCHANGE.")]],
+      ["Change extrusion role G-code", [f("", null, SAME)]],
+      ["Pause G-code", [f("", "PAUSE", SAME)]],
+      ["Template custom G-code", [f("", null, SAME)]]
+    ],
+    "Multimaterial": [
+      ["Single extruder multi-material", [
+        f("Single extruder multi-material", "on", REQ, "One nozzle fed by the ERCF."),
+        f("Enable filament ramming", "off", REQ, "Happy Hare forms the tip itself."),
+        f("Purge in prime tower", "off", REQ, "Checked in your preset. Uncheck: Happy Hare purges, not the slicer."),
+        f("Tool change on wipe tower", "off", SAME),
+        f("Cooling tube position / length", "0 / 0", REQ), f("Cooling tube retraction", "0", REQ),
+        f("Filament parking position", "0", REQ, "parking_pos_retraction"),
+        f("Extra loading distance", "0", REQ),
+        f("High extruder current on filament swap", "off", SAME)]]
+    ],
+    "Extruder": [
+      ["Basic information", [f("Nozzle diameter", "0.4", SAME)]],
+      ["Retraction (used only if firmware retraction is off)", [
+        f("Length", "0.75", CHG, "Your preset shows 0.3. Matches PLA in Klippain's material table; ignored while firmware retraction is on."),
+        f("Z hop height", "0.2", CHG, "Your preset shows 0.4. Z hop is still done by the slicer."), f("Z hop type", "Normal", SAME), f("Z hop on surfaces", "All Surfaces", SAME),
+        f("Retraction speed", "40", CHG, "Your preset shows 30."), f("Deretraction speed", "30", SAME),
+        f("Extra length on restart", "0", SAME), f("Travel distance threshold", "1", SAME),
+        f("Retract on layer change", "on", SAME), f("Wipe while retracting", "off", CHG, "On in your preset. Off: the brush handles wiping and wipe moves do not combine well with G10/G11."),
+        f("Retract amount when changing filament", "0 (retract_when_changing_filament off)", REQ, "Happy Hare retracts during the swap.")]]
+    ],
+    "Motion ability": [
+      ["Advanced", [f("Emit limits to G-code", "leave on, but the limits below must be lowered", REQ, "With the Klipper flavour Orca writes these limits into the file as SET_VELOCITY_LIMIT / M204. Your preset has 15000 mm/s² here, which would set 15000 on the printer at print start. tools/gcode_lint.py now errors on anything above 8000.")]],
+      ["Resonance compensation", [f("Resonance avoidance", "off", SAME, "Klipper input shaping handles this.")]],
+      ["Maximum speed (mm/s)", [f("X / Y", "400 / 400", CHG, "Your preset shows 500."), f("Z", "20", CHG, "Your preset shows 30."), f("E", "60", CHG, "Your preset shows 300.")]],
+      ["Maximum acceleration (mm/s²)", [
+        f("X", "7000", CHG, "Old preset: 15000–20000. X input shaper EI 63.2 Hz allows about 7000."),
+        f("Y", "3500", CHG, "Y input shaper MZV 35.8 Hz is the limiter. Keep at or under 3500."),
+        f("Z", "500", SAME), f("E", "5000", SAME),
+        f("Extruding", "3500", CHG), f("Retracting", "5000", SAME), f("Travel", "8000", CHG, "Tested limit on this machine.")]],
+      ["Jerk", [f("X / Y", "12", SAME), f("Z", "0.2", SAME), f("E", "2.5", SAME)]]
+    ],
+    "Notes": [
+      ["Notes", [f("", "Voron 2.4 350, ERCF v2, Klippain + Happy Hare 4. Generated by tools/make_orca_profile.py. Always run tools/gcode_lint.py on the sliced file before uploading.", SAME, null, true)]]
+    ]
+  }},
+  Filament: { preset: ["Generic PLA test", "filament preset · applies to every gate until per-spool presets exist"], tabs: {
+    "Filament": [
+      ["Basic information", [
+        f("Type", "PLA", REQ, "Klippain MATERIAL must be PLA, PET, ABS or TPU."),
+        f("Diameter", "1.75", SAME), f("Density", "1.24", SAME),
+        f("Flow ratio", "0.98", SAME), f("Max volumetric speed (mm³/s)", "12", SAME, "Dragon HF can go higher; keep 12 for the first prints.")]],
+      ["Print temperature", [
+        f("Nozzle, first layer / other layers", "210 / 205", CHG), f("Recommended range", "190 – 240", SAME)]],
+      ["Cost", [f("Filament cost ($/kg)", "20", SAME, "Matches the PLA fallback landed cost in 3dprint4me. Update per spool.")]],
+      ["Bed temperature", [f("All plate types, first layer and other layers", "60 / 60", CHG, "Super-tack plate stays 45 (unused).")]]
+    ],
+    "Cooling": [
+      ["Part cooling fan", [
+        f("Min / max fan speed", "100% / 100%", SAME), f("Keep fan off for the first", "1 layer", SAME),
+        f("Overhang fan speed / threshold", "100% / 50%", SAME)]],
+      ["Slow down", [f("Slow printing down for better layer cooling", "on, below 4 s layer time, min 10 mm/s", SAME)]]
+    ],
+    "Advanced": [
+      ["Pressure advance", [
+        f("Enable pressure advance", "off", REQ, "START_PRINT applies the material PA (PLA 0.0525, uncalibrated carry-over). Calibrate before trusting it.")]],
+      ["Retraction overrides", [f("Length / speed / min travel", "nil (use printer values)", SAME)]]
+    ]
+  }},
+  Process: { preset: ["Voron24 0.20 standard", "process preset · compatible with Voron 2.4 350 0.4 nozzle"], tabs: {
+    "Quality": [
+      ["Layer height", [f("Layer height", "0.2", SAME), f("First layer height", "0.2", SAME)]],
+      ["Line width", [f("Default / first layer", "0.4 / 0.5", SAME), f("Outer wall, inner wall, top, infill", "0.4, 0.4, 0.4, 0.45", SAME)]],
+      ["Seam", [f("Seam position", "aligned", SAME)]],
+      ["Precision", [f("Resolution", "0.012", SAME), f("Arc fitting", "off", SAME), f("Slice gap closing radius / X-Y compensation", "0", SAME)]]
+    ],
+    "Strength": [
+      ["Walls", [f("Wall loops", "3", SAME), f("Wall order", "inner / outer / infill", SAME), f("Detect thin walls", "off", SAME)]],
+      ["Top / bottom shells", [f("Top layers / thickness", "4 / 0.8", SAME), f("Bottom layers", "3", SAME), f("Top surface pattern", "monotonic line", SAME), f("Bottom surface pattern", "monotonic", SAME)]],
+      ["Sparse infill", [f("Density", "15%", SAME), f("Pattern", "crosshatch", SAME), f("Direction", "45", SAME)]]
+    ],
+    "Speed": [
+      ["Speed (mm/s)", [
+        f("First layer / first layer infill", "50 / 105", SAME),
+        f("Outer wall / inner wall", "120 / 200", SAME, "Aggressive for a first print on a freshly tuned machine. Suggest 60 / 100 for the test box."),
+        f("Sparse infill / solid infill", "200 / 200", SAME, "Suggest 100 for the test box."),
+        f("Top surface / gap infill", "100 / 100", SAME), f("Bridge / internal bridge", "25 / 70", SAME),
+        f("Overhang 25 / 50 / 75 / 100%", "80% / 50 / 30 / 10", SAME), f("Travel", "350", SAME, "Machine cap is 400.")]],
+      ["Acceleration (mm/s²)", [
+        f("Default / first layer", "3000 / 1000", CHG, "Old preset limits were far higher."),
+        f("Outer wall / inner wall", "2500 / 3000", CHG), f("Top surface", "2000", CHG), f("Travel", "6000", CHG),
+        f("Accel-to-decel", "on, 50%", SAME)]]
+    ],
+    "Support & prime tower": [
+      ["Support", [f("Enable support", "off", SAME)]],
+      ["Prime tower", [
+        f("Enable prime tower", "off", REQ, "No-purge test. Happy Hare purges; re-enable only if you move purging into the slicer."),
+        f("Purge in prime tower", "off", REQ)]],
+      ["Skirt / brim", [f("Skirt loops", "0", CHG, "START_PRINT draws an adaptive prime line."), f("Brim", "none", CHG)]]
+    ],
+    "Others": [
+      ["Special", [f("Exclude objects", "on", SAME, "Emits EXCLUDE_OBJECT markers (Klipper supports them)."), f("Print sequence", "by layer", SAME)]],
+      ["Output", [f("Filename format", "{input_filename_base}_{filament_type[initial_tool]}_{print_time}.gcode", SAME)]]
+    ]
+  }}
+};
+
+var state = { top: "Checklist", sub: null };
+var $ = function (id) { return document.getElementById(id); };
+function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+function copyText(text, btn) {
+  function done(ok) { var old = btn.textContent; btn.textContent = ok ? "Copied" : "Select + copy"; setTimeout(function () { btn.textContent = old; }, 1400); }
+  try { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { fallback(); }); } catch (e) { fallback(); }
+  function fallback() {
+    var node = btn.parentNode.querySelector("pre, .v"); if (!node) return done(false);
+    var r = document.createRange(); r.selectNodeContents(node); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); done(false);
+  }
+}
+
+function render() {
+  var top = $("top"); top.textContent = "";
+  Object.keys(DATA).forEach(function (k) {
+    var b = el("button", null, k); b.setAttribute("role", "tab"); b.setAttribute("aria-selected", String(k === state.top));
+    b.onclick = function () { state.top = k; state.sub = null; render(); }; top.appendChild(b);
+  });
+  var d = DATA[state.top], tabs = Object.keys(d.tabs);
+  if (!state.sub || tabs.indexOf(state.sub) < 0) state.sub = tabs[state.top === "Printer" ? 1 : 0];
+  var p = $("preset"); p.textContent = ""; p.appendChild(el("strong", null, d.preset[0])); p.appendChild(el("span", null, d.preset[1]));
+  var sub = $("sub"); sub.textContent = "";
+  tabs.forEach(function (k) {
+    var b = el("button", null, k); b.setAttribute("role", "tab"); b.setAttribute("aria-selected", String(k === state.sub));
+    b.onclick = function () { state.sub = k; render(); }; sub.appendChild(b);
+  });
+  var panel = $("panel"); panel.textContent = "";
+  d.tabs[state.sub].forEach(function (sec) {
+    var s = el("section", "sec"); s.appendChild(el("h2", null, sec[0]));
+    sec[1].forEach(function (fl) {
+      var row = el("div", "field");
+      var lab = el("div", "label", fl.l);
+      if (fl.l) { lab.appendChild(el("span", "tag " + fl.t, fl.t === REQ ? "required" : fl.t === CHG ? "changed" : "same")); }
+      else if (fl.t !== SAME) { lab.appendChild(el("span", "tag " + fl.t, fl.t === REQ ? "required" : "changed")); }
+      row.appendChild(lab);
+      var val = el("div", "val");
+      if (fl.v == null) { val.appendChild(el("div", "v empty", "(empty)")); }
+      else {
+        val.appendChild(fl.m ? el("pre", null, fl.v) : el("div", "v", fl.v));
+        if (fl.m || fl.v.length > 24) { var c = el("button", "copy", "Copy"); c.type = "button"; c.onclick = function () { copyText(fl.v, c); }; val.appendChild(c); }
+      }
+      row.appendChild(val);
+      if (fl.n) { var n = el("div", "note", fl.n); row.appendChild(n); }
+      s.appendChild(row);
+    });
+    panel.appendChild(s);
+  });
+}
+render();
+</script>
